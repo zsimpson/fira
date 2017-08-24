@@ -39,20 +39,20 @@
 			var zz = z('div.container',
 				z('div.row',
 					cols.map( function(col) {
-						return (z('div.col-sm-3',
+						return z('div.col-sm-3',
 							z('h2', col),
 							z('ul.issue-list.list-unstyled',
 								issues.map( function(i) {
 									if( i.state === col ) {
-										return (z('li.panel.panel-info',
+										return z('li.panel.panel-info',
 											z('div.panel-heading', i.id),
 											z('div.panel-body', i.summary)
-										));
+										);
 									}
 								}),
 								z('div.hidden-placeholder')
 							)
-						));
+						);
 					})
 				)
 			);
@@ -63,7 +63,6 @@
 			issueList.sortable({
 				handle: '.panel-heading', 
 				connectWith: '.issue-list',
-				dropOnEmpty: true,
 				update: function() {
 					$('.panel', issueList).each(function(index, elem) {
 						var $listItem = $(elem),
