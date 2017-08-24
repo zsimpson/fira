@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>FIRA</title>
+	<link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css" integrity="sha384-BVYiiSIFeK1dGmJRAkycuHAHRg32OmUcww7on3RYdg4Va+PmSTsz/K68vbdEjh4u" crossorigin="anonymous">
+	<link rel="stylesheet" href="https://ajax.googleapis.com/ajax/libs/jqueryui/1.12.1/themes/smoothness/jquery-ui.css">
+	<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.2.1/jquery.min.js"></script>
+	<script src="https://ajax.googleapis.com/ajax/libs/jqueryui/1.12.1/jquery-ui.min.js"></script>
+	<script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/js/bootstrap.min.js" integrity="sha384-Tc5IQib027qvyjSMfHjOMaLkfuWVxZxUPnCJA7l2mCWNIpG9mGCD8wGNIcPD7Txa" crossorigin="anonymous"></script>
+	<script src="z.js"></script>
+	<script>
+		$(function() {
+			var cols = ['New', 'Todo', 'In-progress', 'In-review'];
+			var issues = [
+				{
+					id: 'SI-1',
+					summary: 'This is the first issue.',
+					state: 'New'
+				},
+				{
+					id: 'SI-2',
+					summary: 'This is the second issue.',
+					state: 'New'
+				},
+				{
+					id: 'SI-3',
+					summary: 'This is the third issue.',
+					state: 'In-review'
+				},
+				{
+					id: 'SI-4',
+					summary: 'This is the fourth issue.',
+					state: 'Todo'
+				}
+			];
+			var zz = z('div.container',
+				z('div.row',
+					cols.map( function(col) {
+						return (z('div.col-sm-3',
+							z('h2', col),
+							z('ul.issue-list.list-unstyled',
+								issues.map( function(i) {
+									if( i.state === col ) {
+										return (z('li.panel.panel-info',
+											z('div.panel-heading', i.id),
+											z('div.panel-body', i.summary)
+										));
+									}
+								}),
+								z('div.hidden-placeholder')
+							)
+						));
+					})
+				)
+			);
+
+			$('body').append( zz );
+
+			var issueList = $('.issue-list');
+			issueList.sortable({
+				handle: '.panel-heading', 
+				connectWith: '.issue-list',
+				dropOnEmpty: true,
+				update: function() {
+					$('.panel', issueList).each(function(index, elem) {
+						var $listItem = $(elem),
+						newIndex = $listItem.index();
+						// Persist the new indices.
+					});
+				}
+			});
+		});
+	</script>
+	<style type="text/css">
+		.issue-list .panel-heading {
+			cursor: move;
+		}
+		.hidden-placeholder {
+			min-height: 50px;
+		}
+		.ui-sortable-placeholder {
+			border: 2px dotted #D0D0D0;
+			background-color: #F8F8F8;
+			visibility:visible !important;
+		}
+		.ui-sortable-helper {
+			opacity: 0.7;
+			transform: rotate(4deg);
+		}
+	</style>
+</head>
+<body>
+</body>
+</html>
+
+
