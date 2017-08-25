@@ -16,8 +16,32 @@
 			padding-left: 1em;
 			padding-right: 1em;
 		}
+		.col-sm-3 {
+			padding-right: 0.5em;
+		}
+		.issue-list .panel {
+			margin-bottom: 0.7em;
+		}
 		.issue-list .panel-heading {
 			cursor: move;
+			padding: 0.1em 0.5em 0.1em 0.5em;
+		}
+		.issue-list .panel-heading:hover {
+			background-color: #DDE;
+		}
+		.issue-list .panel-title {
+			font-size: 0.8em;
+			font-weight: bold;
+		}
+		.issue-list .panel-body {
+			padding: 0.1em 0.5em 0.1em 0.5em;
+		}
+		.issue-list .panel-heading .glyphicon {
+			color: #AAA;
+		}
+		.issue-list .panel-heading .glyphicon:hover {
+			color: #0A0;
+			cursor: pointer;
 		}
 		.hidden-placeholder {
 			min-height: 50px;
@@ -53,16 +77,10 @@
 			'Done': 'Done',
 		}
 
-		let firaPlannedColToLabel = {
-			'Planned Low': 'planned-low',
-			'Planned Med': 'planned-med',
-			'Planned High': 'planned-high',
-		}
-
-		let labelToFiraPlannedCol = {
-			'planned-low': 'Planned Low',
-			'planned-med': 'Planned Med',
-			'planned-high': 'Planned High',
+		let firaPlannedColToPriority = {
+			'Planned Low': 'Low',
+			'Planned Med': 'Medium',
+			'Planned High': 'High',
 		}
 
 		function jira(method, path, params, body, success) {
@@ -79,9 +97,8 @@
 			});
 		}
 
-		function jiraTransition(key, fromCol, toCol) {
+		function jiraTransition(key, toCol) {
 			jira('GET', '/rest/api/2/issue/'+key+'/transitions', null, null, (transitions)=>{
-				let fromPlanned = fromCol.split(' ')[0] == 'Planned';
 				let toPlanned = toCol.split(' ')[0] == 'Planned';
 
 				let jiraStatus;
@@ -99,19 +116,20 @@
 				jira('POST', '/rest/api/2/issue/'+key+'/transitions', null, transition);
 
 				let actions = [];
-				if( fromPlanned ) {
-					actions.push({remove: firaPlannedColToLabel[fromCol]});
-				}
 				if( toPlanned ) {
-					actions.push({add: firaPlannedColToLabel[toCol]});
-				}
-				let labelPutBody = {
-					update: {
-						labels: actions
+					newPriority = firaPlannedColToPriority[toCol];
+					let putBody = {
+						update: {
+							priority: [{
+								set: {
+									name: newPriority
+								}
+							}]
+						}
 					}
-				}
 
-				jira('PUT', '/rest/api/2/issue/'+key, null, labelPutBody);
+					jira('PUT', '/rest/api/2/issue/'+key, null, putBody);
+				}
 			});
 		}
 
@@ -130,6 +148,8 @@
 					'description',
 					'labels',
 					'customfield_10012',
+					'priority',
+					'resolutiondate',
 				],
 				fieldsByKeys: false
 			}
@@ -139,11 +159,11 @@
 					let col = jiraStatusToFiraCol[i.fields.status.name];
 					if( col == 'Planned' ) {
 						col = 'Planned Low';
-						if( i.fields.labels.includes('planned-high') ) {
-							col = labelToFiraPlannedCol['planned-high'];
+						if( i.fields.priority.name === 'High' ) {
+							col = 'Planned High';
 						}
-						else if( i.fields.labels.includes('planned-med') ) {
-							col = labelToFiraPlannedCol['planned-med'];
+						else if( i.fields.priority.name === 'Medium' ) {
+							col = 'Planned Med';
 						}
 					}
 					return {
@@ -151,6 +171,7 @@
 						summary: i.fields.summary,
 						col: col,
 						sort: i.fields.customfield_10012,
+						resolutiondate: i.fields.resolutiondate,
 					};
 				});
 				renderIssues(issues);
@@ -159,14 +180,16 @@
 
 		function renderCol(col, issues) {
 			return z('div',
-				z('h2', col),
+				z('h4', col),
 				z('ul.issue-list.list-unstyled', {data: [{key: 'col', val: col}]},
 					issues.sort( (a, b)=> {
 						return a.sort > b.sort ? 1 : (a.sort < b.sort ? -1 : 0);
 					}).map( (i) => {
 						return z('li.panel.panel-default', {data: [{key: 'key', val: i.key}]},
 							z('div.panel-heading',
-								z('h5.panel-title', i.key)
+								z('div.panel-title', i.key,
+									z('span.glyphicon.glyphicon-ok.pull-right.close-issue', {'aria-hidden':true})
+								)
 							),
 							z('div.panel-body', i.summary)
 						);
@@ -178,11 +201,11 @@
 
 		function renderIssues(issues) {
 			let topCols = ['New', 'To Do', 'In Progress', 'In Review'];
-			let botCols = ['Planned High', 'Planned Med', 'Planned Low'];
+			let botCols = ['Planned High', 'Planned Med', 'Planned Low', 'Done'];
 			let zz = z('div',
 				z('div.row',
 					topCols.map( (col) => {
-						let issuesForCol = issues.filter((i) => {return i.col === col});
+						let issuesForCol = issues.filter( (i) => { return i.col === col } );
 						return z('div.col-sm-3',
 							renderCol(col, issuesForCol)
 						);
@@ -190,7 +213,15 @@
 				),
 				z('div.row', 
 					botCols.map( (col) => {
-						let issuesForCol = issues.filter((i) => {return i.col === col});
+						let showTime = 1000 * 60 * 60 * 24 * 7; // One week
+						let issuesForCol = issues.filter( (i) => { return i.col === col } );
+						if( col == 'Done' ) {
+							issuesForCol = issuesForCol.filter( (i) => {
+								let a = Date.parse(i.resolutiondate);
+								let b = (new Date).getTime();
+								return a && b && b-a < showTime;
+							});
+						}
 						return z('div.col-sm-3',
 							renderCol(col, issuesForCol)
 						);
@@ -208,17 +239,37 @@
 						let key = $(ui.item).data('key');
 						let toCol = $(event.target).data('col');
 						let fromCol = $(ui.sender).data('col');
-						jiraTransition(key, fromCol, toCol);
+						jiraTransition(key, toCol);
 					}
 				}
+			});
+
+			$('.close-issue').click( function() {
+				let $panel = $(this).parents('.panel')
+				let key = $panel.data('key');
+				jiraTransition(key, 'Done');
+				$panel.fadeOut( 300, () => {
+            		let $done = $(".issue-list[data-col='Done']");
+            		$panel.prependTo($done);
+            		$panel.removeAttr('style');
+        		});
 			});
 		}
 
 		$(document).ready(function() {
+			jira('GET', '/rest/api/2/issue/SI-300', null, null, (data)=>{
+				console.log('SI-300', data);
+			});
 			jiraSearchIssues();
 		});
 	</script>
 </head>
 <body>
+	<ul>
+		<li>New/Edit/Comment</li>
+		<li>Save my sort order in a label or custom field</li>
+		<li>Switch assignee view</li>
+		<li>Epic tags</li>
+	</ul>
 </body>
 </html>
