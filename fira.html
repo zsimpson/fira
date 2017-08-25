@@ -5,20 +5,37 @@
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>FIRA</title>
+	<link rel="icon" href="data:;base64,iVBORw0KGgo=">
 	<link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css" integrity="sha384-BVYiiSIFeK1dGmJRAkycuHAHRg32OmUcww7on3RYdg4Va+PmSTsz/K68vbdEjh4u" crossorigin="anonymous">
 	<link rel="stylesheet" href="https://ajax.googleapis.com/ajax/libs/jqueryui/1.12.1/themes/smoothness/jquery-ui.css">
 	<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.2.1/jquery.min.js"></script>
 	<script src="https://ajax.googleapis.com/ajax/libs/jqueryui/1.12.1/jquery-ui.min.js"></script>
 	<script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/js/bootstrap.min.js" integrity="sha384-Tc5IQib027qvyjSMfHjOMaLkfuWVxZxUPnCJA7l2mCWNIpG9mGCD8wGNIcPD7Txa" crossorigin="anonymous"></script>
-	<script src="z.js"></script>
 	<style type="text/css">
 		body {
 			background-color: #d0cccc;
-			padding-left: 1em;
-			padding-right: 1em;
+			padding: 1em 1em 0em 1em;
+		}
+		.glyphicon.spinning {
+			animation: spin 1s infinite linear;
+		}
+		@keyframes spin {
+			from { transform: scale(1) rotate(0deg);}
+			to { transform: scale(1) rotate(360deg);}
+		}
+		.logo {
+			position: relative;
+			top: 0.2em;
+			font-size: 2em;
+			font-style: italic;
+			font-weight: bold;
+			padding-right: 0.5em;
 		}
 		.col-sm-3 {
 			padding-left: 0.5em;
+			padding-right: 0.5em;
+		}
+		.form-inline label {
 			padding-right: 0.5em;
 		}
 		.issue-list .panel {
@@ -63,6 +80,70 @@
 		}
 	</style>
 	<script>
+		// Inspired by hyperscript, with no dependencies and a bit simpler
+		function z() {
+			var a = arguments[0];
+			var m = a.split( /(?=[\.#])/g );
+			var e = document.createElement( m[0] );
+			m.slice(1).forEach( function (i) {
+				var term = i.substring(1);
+				if( i[0] === '.' ) {
+					e.className += ' ' + term;
+				}
+				else if( i[0] === '#' ) {
+					e.setAttribute( 'id', term );
+				}
+			});
+			for( var i=1; i<arguments.length; i++ ) {
+				var a = arguments[i];
+				if( typeof a === 'string' ) {
+					e.appendChild( document.createTextNode(a) );
+				}
+				else if( a instanceof Array ) {
+					for( var j=0; j<a.length; j++ ) {
+						if( typeof a[j] !== 'undefined' ) {
+							e.appendChild( a[j] );
+						}
+					}
+				}
+				else if( a instanceof HTMLElement ) {
+					e.appendChild( a );
+				}
+				else if( a instanceof Object ) {
+					for( var key in a ) {
+						if( a.hasOwnProperty(key) ) {
+							if( key == 'data' ) {
+								for( var d in a[key] ) {
+									e.dataset[a[key][d].key] = a[key][d].val;
+								}
+							}
+							else {
+								e.setAttribute( key, a[key] );
+							}
+						}
+					}
+				}
+			}
+			return e;
+		}
+
+		function setCookie(name, value) {
+			document.cookie = name + '=' + encodeURIComponent(value) + '; expires=2147483647; path=/';
+		}
+
+		function getCookie(name) {
+			return document.cookie.split('; ').reduce( (r, v) => {
+				const parts = v.split('=');
+				return parts[0] === name ? decodeURIComponent(parts[1]) : r;
+			}, '');
+		}
+	</script>
+	<script>
+		let users = [
+			'Zack',
+			'Mike McCabe',
+		]
+
 		let jiraStatusToFiraCol = {
 			'New': 'New',
 			'To Do': 'To Do',
@@ -97,12 +178,45 @@
 				contentType: 'application/json',
 				dataType: 'json',
 				url: 'http://localhost:8080' + path + (params ? '?' + $.param(params) : ''),
-				data: JSON.stringify(body),
+				data: body ? JSON.stringify(body) : null,
 				success: success,
-				error: () => {
-					console.log('error on jira');
-				},
+				error: (jqXHR, textStatus, errorThrown) => {
+					alert(
+						'Communication with JIRA failed.\n\nPerhaps your JIRA key is mis-configured on the Configure option?\n\n' +
+						'Exact message is: ' + textStatus + ' ' + errorThrown
+					);
+				}
 			});
+		}
+
+		function jiraCreateIssue(fields) {
+			let postBody = {
+				fields: {
+					project: {
+						id: 12902
+					},
+					summary: fields.summary,
+					description: fields.description,
+					assignee: {
+						name: 'zack'
+					},
+					issuetype: {
+						id: 1
+						// name: "Chore"
+					}
+				}
+			}
+			jira('POST', '/rest/api/2/issue', null, postBody);
+		}
+
+		function jiraUpdateIssue(key, fields) {
+			let putBody = {
+				fields: {
+					summary: fields.summary,
+					description: fields.description
+				}
+			}
+			jira('PUT', '/rest/api/2/issue/'+key, null, putBody);
 		}
 
 		function jiraTransition(key, toCol) {
@@ -141,9 +255,31 @@
 			});
 		}
 
-		function jiraSearchIssues() {
+		function jiraToFiraIssue(issue) {
+			let col = jiraStatusToFiraCol[issue.fields.status.name];
+			if( col == 'Planned' ) {
+				col = 'Planned Low';
+				if( issue.fields.priority.name === 'High' ) {
+					col = 'Planned High';
+				}
+				else if( issue.fields.priority.name === 'Medium' ) {
+					col = 'Planned Med';
+				}
+			}
+			return {
+				key: issue.key,
+				summary: issue.fields.summary,
+				description: issue.fields.description,
+				col: col,
+				sort: issue.fields.customfield_10012,
+				resolutiondate: issue.fields.resolutiondate,
+				jiraIssue: issue
+			};
+		}
+
+		function jiraSearch(assignee, onDone) {
 			let body = {
-				jql: 'assignee=zack',
+				jql: 'assignee="'+assignee+'"',
 				startAt: 0,
 				maxResults: 100000000,
 				fields: [
@@ -163,51 +299,37 @@
 				fieldsByKeys: false
 			}
 			jira('POST', '/rest/api/2/search', null, body, (data)=>{
-				let issues = data.issues.filter(i => i.fields.issuetype.name !== 'Epic' && i.fields.issuetype.name !== 'Story');
+				// let issues = data.issues.filter(i => i.fields.issuetype.name !== 'Epic' && i.fields.issuetype.name !== 'Story');
+				let issues = data.issues;
 				let myIssues = issues.map((i) => {
-					let col = jiraStatusToFiraCol[i.fields.status.name];
-					if( col == 'Planned' ) {
-						col = 'Planned Low';
-						if( i.fields.priority.name === 'High' ) {
-							col = 'Planned High';
-						}
-						else if( i.fields.priority.name === 'Medium' ) {
-							col = 'Planned Med';
-						}
-					}
-					return {
-						key: i.key,
-						summary: i.fields.summary,
-						description: i.fields.description,
-						col: col,
-						sort: i.fields.customfield_10012,
-						resolutiondate: i.fields.resolutiondate,
-					};
+					return jiraToFiraIssue(i);
 				});
 				issuesByKey = myIssues.reduce( (map, i) => {
 					map[i.key] = i;
 					return map;
-				});
-				renderIssues(myIssues);
+				}, {});
+				onDone(myIssues);
 			});
 		}
 
-		function renderCol(col, issues) {
+		function renderIssue(issue) {
+			return z('li.panel.panel-default', {'data-key': issue.key},
+				z('div.panel-heading',
+					z('div.panel-title', issue.key,
+						z('span.glyphicon.glyphicon-ok.pull-right.close-issue', {'aria-hidden':true})
+					)
+				),
+				z('div.panel-body', issue.summary)
+			);
+		}
+
+		function renderCol(col, colLabel, issues) {
 			return z('div',
-				z('h4', col),
+				z('h4', colLabel),
 				z('ul.issue-list.list-unstyled', {'data-col': col},
 					issues.sort( (a, b)=> {
 						return a.sort > b.sort ? 1 : (a.sort < b.sort ? -1 : 0);
-					}).map( (i) => {
-						return z('li.panel.panel-default', {'data-key': i.key},
-							z('div.panel-heading',
-								z('div.panel-title', i.key,
-									z('span.glyphicon.glyphicon-ok.pull-right.close-issue', {'aria-hidden':true})
-								)
-							),
-							z('div.panel-body', i.summary)
-						);
-					}),
+					}).map( i => renderIssue(i) ),
 					z('div.hidden-placeholder')
 				)
 			);
@@ -216,12 +338,12 @@
 		function renderIssues(issues) {
 			let topCols = ['New', 'To Do', 'In Progress', 'In Review'];
 			let botCols = ['Planned High', 'Planned Med', 'Planned Low', 'Done'];
-			let zz = z('div',
+			let zz = z('div.issues',
 				z('div.row',
 					topCols.map( (col) => {
 						let issuesForCol = issues.filter( (i) => { return i.col === col } );
 						return z('div.col-sm-3',
-							renderCol(col, issuesForCol)
+							renderCol(col, col, issuesForCol)
 						);
 					})
 				),
@@ -229,7 +351,9 @@
 					botCols.map( (col) => {
 						let showTime = 1000 * 60 * 60 * 24 * 7; // One week
 						let issuesForCol = issues.filter( (i) => { return i.col === col } );
+						let colLabel = col;
 						if( col == 'Done' ) {
+							colLabel = 'Done (recent)'
 							issuesForCol = issuesForCol.filter( (i) => {
 								let a = Date.parse(i.resolutiondate);
 								let b = (new Date).getTime();
@@ -237,12 +361,12 @@
 							});
 						}
 						return z('div.col-sm-3',
-							renderCol(col, issuesForCol)
+							renderCol(col, colLabel, issuesForCol)
 						);
 					})
 				)
 			);
-			$('body').append( zz );
+			$('#issues-section').html( zz );
 
 			let issueList = $('.issue-list');
 			issueList.sortable({
@@ -270,82 +394,185 @@
 			});
 		}
 
-		function editIssue(issue) {
-			$('#issue-edit-modal').dialog('open');
+		function createConfigureForm() {
+			let jiraCookie = getCookie('jiracookie');
+			let zz = z('div',
+				z('div.form-group',
+					z('label', {for:'jiracookie'}, 'JIRA cookies. (Paste from your JIRA tab, should start with _csrf=)'),
+					z('textarea.form-control', {name:'jiracookie', rows:15})
+				)
+			);
+			$('textarea[name=jiracookie]', zz).val( jiraCookie );
+			return zz;
 		}
 
-		function createEditorDialog() {
-			let zz = z('div#editor.modal.fade', {role:'dialog'},
+		function createIssueForm(issue) {
+			let zz = z('div',
+				z('div.form-group',
+					z('label', {for:'summary'}, 'Summary'),
+					z('input.form-control', {name:'summary'})
+				),
+				z('div.form-group',
+					z('label', {for:'description'}, 'Description'),
+					z('textarea.form-control', {name:'description', rows:4})
+				)
+			);
+
+			let issueFields = ['summary', 'description'];
+			issueFields.map( (field) => {
+				$('.form-control[name='+field+']', zz).val( issue[field] );
+			});
+
+			return zz;
+		}
+
+		function createDialog(title, formBody, onSave) {
+			let dialogFormId = 'form-'+Date.now();
+			let zz = z('div.modal.fade', {role:'dialog'},
 				z('div.modal-dialog.modal-lg',
 					z('div.modal-content',
 						z('div.modal-header',
 							z('button.close', {'data-dismiss':'modal'}, 'x'),
-							z('h4.modal-title', 'Edit')
+							z('h4.modal-title', title)
 						),
-						z('form', {role:'form'},
+						z('form', {role:'form', id:dialogFormId},
 							z('div.modal-body',
-								z('div.form-group',
-									z('label', {for:'summary'}, 'Summary'),
-									z('input.form-control', {name:'summary'})
-								),
-								z('div.form-group',
-									z('label', {for:'description'}, 'Description'),
-									z('textarea.form-control', {name:'description', rows:4})
-								)
+								formBody
 							),
-							z('div.modal-footer',
-								z('button.btn.btn-primary', {type:'submit', 'data-dismiss':'modal'}, 'Close')
-							)
+							// z('button.btn.btn-primary', {type:'submit', value:'submit'}, 'Save test')
+						),
+						z('div.modal-footer',
+							z('button.btn.btn-default', {'data-dismiss':'modal'}, 'Cancel'),
+							z('button.btn.btn-primary', {type:'submit', form:dialogFormId}, 'Save')
 						)
 					)
 				)
 			);
+
 			$('body').append(zz);
+
+			$(zz).modal();
+
+			$('form', zz).submit( () => {
+				let fields = {};
+				$('form :input', zz).each( function() {
+					fields[$(this).attr('name')] = $(this).val();
+				});
+				onSave(fields);
+				$(zz).modal('hide');
+				return false;
+			});
+
+			$(zz).on( 'hidden.bs.modal', () => {
+				$(zz).remove();
+			});
+
+			return zz;
 		}
 
-		function createTopBar() {
-			let zz = z('div',
-				z('button.btn.btn-success#btn-new-issue', 'New issue'),
-				z('button.btn.btn-link#btn-configure', 'Configure')
+		function reload() {
+			let assignee = $('#filter-assignee').val()
+			let waiting = z('h3.text-center',
+				z('span.glyphicon.glyphicon-refresh.spinning'),
+				z('span', ' Loading...')
 			);
-			$('body').append(zz);
-			$('#btn-new-issue').click( () => {
-				
+			$('#issues-section').html(waiting);
+			jiraSearch( assignee, (issues) => {
+				renderIssues(issues);
 			});
 		}
 
 		$(document).ready(function() {
-			// jira('GET', '/rest/api/2/issue/SI-300', null, null, (data)=>{
-			// 	console.log('SI-300', data);
-			// });
+			// To get all users:
+			/*
+			jira('GET', '/rest/api/latest/user/search', {startAt:0, maxResults:1000, username:'%'}, null, (data)=>{
+				let users = data.map( (i) => {
+					if( i.active ) {
+						return i.key;
+					}
+				});
+				let userOptions = users.map( (u) => {
+					return z('option', u);
+				});
+				$('#filter-assignee').html(userOptions);
+			});
+			*/
 
-			createTopBar();
-			createEditorDialog();
-			jiraSearchIssues();
+			let topBar = z('form.form-inline',
+				z('span.logo', 'F*IRA'),
+				z('button.btn.btn-success#btn-new-issue', 'New issue'),
+				z('button.btn.btn-link#btn-configure', 'Configure'),
+				z('div.form-group',
+					z('label', {for:'filter-assignee'}, 'Filter for assignee:'),
+					z('select.form-control#filter-assignee')
+				)
+			);
+			$('#nav-section').html(topBar);
+
+			let softwareGroup = [
+				'zack',
+				'youssef',
+				'willy',
+				'pablo',
+				'mike mccabe',
+				'kyle heath',
+				'guy',
+				'davidrideout',
+				'daniel ford',
+			];
+
+			$('#filter-assignee').html( softwareGroup.sort().map( u => z('option', u) ) );
+
+			$('#filter-assignee').val( getCookie('filter-assignee') );
+
+			$('#filter-assignee').change( function() {
+				setCookie('filter-assignee', $(this).val() );
+				reload();
+			});
+
+			$('#btn-new-issue').click( () => {
+				let newIssue = { key: 'New Issue' }
+				createDialog( 'New Issue', createIssueForm(newIssue), (fields) => {
+					jiraCreateIssue(fields);
+					reload();
+				});
+				return false;
+			});
+
+			$('#btn-configure').click( () => {
+				createDialog( 'Configure', createConfigureForm(), (fields) => {
+					setCookie('jiracookie', fields.jiracookie);
+					reload();
+				});
+				return false;
+			})
+
+			reload();
 
 			$(document).on( 'click', '.panel-body', (e) => {
 				let key = $(e.target).parents('.panel').data('key');
-				let issue = issuesByKey[key];
-				let fields = ['summary', 'description'];
-				fields.map( (field) => {
-					$('#editor .form-control[name='+field+']').val(issue[field]);
+				createDialog( 'Edit Issue ' + key, createIssueForm(issuesByKey[key]), (fields) => {
+					jiraUpdateIssue(key, fields);
+					let issue = issuesByKey[key];
+					issue = Object.assign(issue, fields);
+					$('.panel[data-key='+key+']').replaceWith( renderIssue(issue) );
 				});
-				$('#editor .modal-title').text(key);
-				$('#editor').modal();
 			});
 		});
 	</script>
 </head>
 <body>
+	<div id="nav-section" class="container-fluid">
+	</div>
+	<div id="issues-section" class="container-fluid">
+	</div>
 	<ul>
-		<li>New/Edit save, new button</li>
+		<li>Project, issue type, assignee softcode</li>
+		<li>Edit assignee</li>
 		<li>Comments</li>
-		<li>Client side cookie</li>
-		<li>Convert dialogs to z</li>
-		<li>Save my sort order in a label or custom field</li>
-		<li>Switch assignee view</li>
+		<li>Save sort order</li>
 		<li>Epic tags</li>
-		<li>Loading spinner</li>
+		<li>Speed up by limiting done query?</li>
 	</ul>
 </body>
 </html>
