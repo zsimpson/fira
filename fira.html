@@ -13,28 +13,34 @@
 	<script src="z.js"></script>
 	<style type="text/css">
 		body {
+			background-color: #d0cccc;
 			padding-left: 1em;
 			padding-right: 1em;
 		}
 		.col-sm-3 {
+			padding-left: 0.5em;
 			padding-right: 0.5em;
 		}
 		.issue-list .panel {
 			margin-bottom: 0.7em;
 		}
 		.issue-list .panel-heading {
+			background-color: #dedfe8;
 			cursor: move;
 			padding: 0.1em 0.5em 0.1em 0.5em;
 		}
 		.issue-list .panel-heading:hover {
-			background-color: #DDE;
+			background-color: #ced1f3;
 		}
 		.issue-list .panel-title {
 			font-size: 0.8em;
 			font-weight: bold;
 		}
 		.issue-list .panel-body {
-			padding: 0.1em 0.5em 0.1em 0.5em;
+			padding: 0.4em 0.5em 0.4em 0.5em;
+		}
+		.issue-list .panel-body:hover {
+			background-color: #EEE;
 		}
 		.issue-list .panel-heading .glyphicon {
 			color: #AAA;
@@ -48,7 +54,7 @@
 		}
 		.ui-sortable-placeholder {
 			border: 2px dotted #D0D0D0;
-			background-color: #F8F8F8;
+			background-color: #999;
 			visibility:visible !important;
 		}
 		.ui-sortable-helper {
@@ -82,6 +88,8 @@
 			'Planned Med': 'Medium',
 			'Planned High': 'High',
 		}
+
+		let issuesByKey = {};
 
 		function jira(method, path, params, body, success) {
 			$.ajax({
@@ -156,7 +164,7 @@
 			}
 			jira('POST', '/rest/api/2/search', null, body, (data)=>{
 				let issues = data.issues.filter(i => i.fields.issuetype.name !== 'Epic' && i.fields.issuetype.name !== 'Story');
-				issues = issues.map((i) => {
+				let myIssues = issues.map((i) => {
 					let col = jiraStatusToFiraCol[i.fields.status.name];
 					if( col == 'Planned' ) {
 						col = 'Planned Low';
@@ -170,29 +178,34 @@
 					return {
 						key: i.key,
 						summary: i.fields.summary,
+						description: i.fields.description,
 						col: col,
 						sort: i.fields.customfield_10012,
 						resolutiondate: i.fields.resolutiondate,
 					};
 				});
-				renderIssues(issues);
+				issuesByKey = myIssues.reduce( (map, i) => {
+					map[i.key] = i;
+					return map;
+				});
+				renderIssues(myIssues);
 			});
 		}
 
 		function renderCol(col, issues) {
 			return z('div',
 				z('h4', col),
-				z('ul.issue-list.list-unstyled', {data: [{key: 'col', val: col}]},
+				z('ul.issue-list.list-unstyled', {'data-col': col},
 					issues.sort( (a, b)=> {
 						return a.sort > b.sort ? 1 : (a.sort < b.sort ? -1 : 0);
 					}).map( (i) => {
-						return z('li.panel.panel-default', {data: [{key: 'key', val: i.key}]},
+						return z('li.panel.panel-default', {'data-key': i.key},
 							z('div.panel-heading',
 								z('div.panel-title', i.key,
 									z('span.glyphicon.glyphicon-ok.pull-right.close-issue', {'aria-hidden':true})
 								)
 							),
-							z('div.panel-body', i.summary, {data:[{key:'toggle',val:'modal'},{key:'target',val:'#editor'}]})
+							z('div.panel-body', i.summary)
 						);
 					}),
 					z('div.hidden-placeholder')
@@ -261,48 +274,78 @@
 			$('#issue-edit-modal').dialog('open');
 		}
 
+		function createEditorDialog() {
+			let zz = z('div#editor.modal.fade', {role:'dialog'},
+				z('div.modal-dialog.modal-lg',
+					z('div.modal-content',
+						z('div.modal-header',
+							z('button.close', {'data-dismiss':'modal'}, 'x'),
+							z('h4.modal-title', 'Edit')
+						),
+						z('form', {role:'form'},
+							z('div.modal-body',
+								z('div.form-group',
+									z('label', {for:'summary'}, 'Summary'),
+									z('input.form-control', {name:'summary'})
+								),
+								z('div.form-group',
+									z('label', {for:'description'}, 'Description'),
+									z('textarea.form-control', {name:'description', rows:4})
+								)
+							),
+							z('div.modal-footer',
+								z('button.btn.btn-primary', {type:'submit', 'data-dismiss':'modal'}, 'Close')
+							)
+						)
+					)
+				)
+			);
+			$('body').append(zz);
+		}
+
+		function createTopBar() {
+			let zz = z('div',
+				z('button.btn.btn-success#btn-new-issue', 'New issue'),
+				z('button.btn.btn-link#btn-configure', 'Configure')
+			);
+			$('body').append(zz);
+			$('#btn-new-issue').click( () => {
+				
+			});
+		}
+
 		$(document).ready(function() {
 			// jira('GET', '/rest/api/2/issue/SI-300', null, null, (data)=>{
 			// 	console.log('SI-300', data);
 			// });
+
+			createTopBar();
+			createEditorDialog();
 			jiraSearchIssues();
-			$('#issue-edit-modal').dialog({});
+
+			$(document).on( 'click', '.panel-body', (e) => {
+				let key = $(e.target).parents('.panel').data('key');
+				let issue = issuesByKey[key];
+				let fields = ['summary', 'description'];
+				fields.map( (field) => {
+					$('#editor .form-control[name='+field+']').val(issue[field]);
+				});
+				$('#editor .modal-title').text(key);
+				$('#editor').modal();
+			});
 		});
 	</script>
 </head>
 <body>
-	<div id="editor" class="modal fade" role="dialog">
-		<div class="modal-dialog modal-lg">
-			<div class="modal-content">
-				<div class="modal-header">
-					<button type="button" class="close" data-dismiss="modal">&times;</button>
-					<h4 class="modal-title">Modal Header</h4>
-				</div>
-				<form role="form">
-					<div class="modal-body">
-						<div class="form-group">
-							<label for="summary">Summary</label>
-							<input type="summary" class="form-control">
-						</div>
-						<div class="form-group">
-							<label for="description">Description</label>
-							<textarea class="form-control" type="description" rows="4"></textarea>
-						</div>
-					</div>
-					<div class="modal-footer">
-						<button type="submit" class="btn btn-primary" data-dismiss="modal">Close</button>
-					</div>
-				</form>
-			</div>
-		</div>
-	</div>
 	<ul>
-		<li>New/Edit/Comment</li>
+		<li>New/Edit save, new button</li>
+		<li>Comments</li>
+		<li>Client side cookie</li>
+		<li>Convert dialogs to z</li>
 		<li>Save my sort order in a label or custom field</li>
 		<li>Switch assignee view</li>
 		<li>Epic tags</li>
 		<li>Loading spinner</li>
-		<li>Better background</li>
 	</ul>
 </body>
 </html>
