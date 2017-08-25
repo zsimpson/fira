@@ -11,69 +11,11 @@
 	<script src="https://ajax.googleapis.com/ajax/libs/jqueryui/1.12.1/jquery-ui.min.js"></script>
 	<script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/js/bootstrap.min.js" integrity="sha384-Tc5IQib027qvyjSMfHjOMaLkfuWVxZxUPnCJA7l2mCWNIpG9mGCD8wGNIcPD7Txa" crossorigin="anonymous"></script>
 	<script src="z.js"></script>
-	<script>
-		$(function() {
-			var cols = ['New', 'Todo', 'In-progress', 'In-review'];
-			var issues = [
-				{
-					id: 'SI-1',
-					summary: 'This is the first issue.',
-					state: 'New'
-				},
-				{
-					id: 'SI-2',
-					summary: 'This is the second issue.',
-					state: 'New'
-				},
-				{
-					id: 'SI-3',
-					summary: 'This is the third issue.',
-					state: 'In-review'
-				},
-				{
-					id: 'SI-4',
-					summary: 'This is the fourth issue.',
-					state: 'Todo'
-				}
-			];
-			var zz = z('div.container',
-				z('div.row',
-					cols.map( function(col) {
-						return z('div.col-sm-3',
-							z('h2', col),
-							z('ul.issue-list.list-unstyled',
-								issues.map( function(i) {
-									if( i.state === col ) {
-										return z('li.panel.panel-info',
-											z('div.panel-heading', i.id),
-											z('div.panel-body', i.summary)
-										);
-									}
-								}),
-								z('div.hidden-placeholder')
-							)
-						);
-					})
-				)
-			);
-
-			$('body').append( zz );
-
-			var issueList = $('.issue-list');
-			issueList.sortable({
-				handle: '.panel-heading', 
-				connectWith: '.issue-list',
-				update: function() {
-					$('.panel', issueList).each(function(index, elem) {
-						var $listItem = $(elem),
-						newIndex = $listItem.index();
-						// Persist the new indices.
-					});
-				}
-			});
-		});
-	</script>
 	<style type="text/css">
+		body {
+			padding-left: 1em;
+			padding-right: 1em;
+		}
 		.issue-list .panel-heading {
 			cursor: move;
 		}
@@ -90,9 +32,193 @@
 			transform: rotate(4deg);
 		}
 	</style>
+	<script>
+		let jiraStatusToFiraCol = {
+			'New': 'New',
+			'To Do': 'To Do',
+			'In Progress': 'In Progress',
+			'Completed: needs review': 'In Review',
+			'Accepted': 'In Review',
+			'Planned': 'Planned',
+			'Done': 'Done',
+			"Won't Fix": 'Done',
+		}
+
+		let firaColToJiraStatus = {
+			'New': 'New',
+			'To Do': 'To Do',
+			'In Progress': 'In Progress',
+			'In Review': 'Completed: needs review',
+			'Planned': 'Planned',
+			'Done': 'Done',
+		}
+
+		let firaPlannedColToLabel = {
+			'Planned Low': 'planned-low',
+			'Planned Med': 'planned-med',
+			'Planned High': 'planned-high',
+		}
+
+		let labelToFiraPlannedCol = {
+			'planned-low': 'Planned Low',
+			'planned-med': 'Planned Med',
+			'planned-high': 'Planned High',
+		}
+
+		function jira(method, path, params, body, success) {
+			$.ajax({
+				method: method,
+				contentType: 'application/json',
+				dataType: 'json',
+				url: 'http://localhost:8080' + path + (params ? '?' + $.param(params) : ''),
+				data: JSON.stringify(body),
+				success: success,
+				error: () => {
+					console.log('error on jira');
+				},
+			});
+		}
+
+		function jiraTransition(key, fromCol, toCol) {
+			jira('GET', '/rest/api/2/issue/'+key+'/transitions', null, null, (transitions)=>{
+				let fromPlanned = fromCol.split(' ')[0] == 'Planned';
+				let toPlanned = toCol.split(' ')[0] == 'Planned';
+
+				let jiraStatus;
+				if( toPlanned ) {
+					jiraStatus = 'Planned';
+				}
+				else {
+					jiraStatus = firaColToJiraStatus[toCol];
+				}
+				transition = {
+					transition: {
+						id: transitions.transitions.find(t => t.to.name === jiraStatus).id
+					}
+				}
+				jira('POST', '/rest/api/2/issue/'+key+'/transitions', null, transition);
+
+				let actions = [];
+				if( fromPlanned ) {
+					actions.push({remove: firaPlannedColToLabel[fromCol]});
+				}
+				if( toPlanned ) {
+					actions.push({add: firaPlannedColToLabel[toCol]});
+				}
+				let labelPutBody = {
+					update: {
+						labels: actions
+					}
+				}
+
+				jira('PUT', '/rest/api/2/issue/'+key, null, labelPutBody);
+			});
+		}
+
+		function jiraSearchIssues() {
+			let body = {
+				jql: 'assignee=zack',
+				startAt: 0,
+				maxResults: 100000000,
+				fields: [
+					'summary',
+					'status',
+					'assignee',
+					'creator',
+					'issuetype',
+					'reporter',
+					'description',
+					'labels',
+					'customfield_10012',
+				],
+				fieldsByKeys: false
+			}
+			jira('POST', '/rest/api/2/search', null, body, (data)=>{
+				let issues = data.issues.filter(i => i.fields.issuetype.name !== 'Epic' && i.fields.issuetype.name !== 'Story');
+				issues = issues.map((i) => {
+					let col = jiraStatusToFiraCol[i.fields.status.name];
+					if( col == 'Planned' ) {
+						col = 'Planned Low';
+						if( i.fields.labels.includes('planned-high') ) {
+							col = labelToFiraPlannedCol['planned-high'];
+						}
+						else if( i.fields.labels.includes('planned-med') ) {
+							col = labelToFiraPlannedCol['planned-med'];
+						}
+					}
+					return {
+						key: i.key,
+						summary: i.fields.summary,
+						col: col,
+						sort: i.fields.customfield_10012,
+					};
+				});
+				renderIssues(issues);
+			});
+		}
+
+		function renderCol(col, issues) {
+			return z('div',
+				z('h2', col),
+				z('ul.issue-list.list-unstyled', {data: [{key: 'col', val: col}]},
+					issues.sort( (a, b)=> {
+						return a.sort > b.sort ? 1 : (a.sort < b.sort ? -1 : 0);
+					}).map( (i) => {
+						return z('li.panel.panel-default', {data: [{key: 'key', val: i.key}]},
+							z('div.panel-heading',
+								z('h5.panel-title', i.key)
+							),
+							z('div.panel-body', i.summary)
+						);
+					}),
+					z('div.hidden-placeholder')
+				)
+			);
+		}
+
+		function renderIssues(issues) {
+			let topCols = ['New', 'To Do', 'In Progress', 'In Review'];
+			let botCols = ['Planned High', 'Planned Med', 'Planned Low'];
+			let zz = z('div',
+				z('div.row',
+					topCols.map( (col) => {
+						let issuesForCol = issues.filter((i) => {return i.col === col});
+						return z('div.col-sm-3',
+							renderCol(col, issuesForCol)
+						);
+					})
+				),
+				z('div.row', 
+					botCols.map( (col) => {
+						let issuesForCol = issues.filter((i) => {return i.col === col});
+						return z('div.col-sm-3',
+							renderCol(col, issuesForCol)
+						);
+					})
+				)
+			);
+			$('body').append( zz );
+
+			let issueList = $('.issue-list');
+			issueList.sortable({
+				handle: '.panel-heading', 
+				connectWith: '.issue-list',
+				update: (event, ui) => {
+					if( ui.sender ) {
+						let key = $(ui.item).data('key');
+						let toCol = $(event.target).data('col');
+						let fromCol = $(ui.sender).data('col');
+						jiraTransition(key, fromCol, toCol);
+					}
+				}
+			});
+		}
+
+		$(document).ready(function() {
+			jiraSearchIssues();
+		});
+	</script>
 </head>
 <body>
 </body>
 </html>
-
-

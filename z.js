@@ -30,7 +30,14 @@ function z() {
 		else if( a instanceof Object ) {
 			for( var key in a ) {
 				if( a.hasOwnProperty(key) ) {
-					e.setAttribute( key, a[key] );
+					if( key == 'data' ) {
+						for( var d in a[key] ) {
+							e.dataset[a[key][d].key] = a[key][d].val;
+						}
+					}
+					else {
+						e.setAttribute( key, a[key] );
+					}
 				}
 			}
 		}
