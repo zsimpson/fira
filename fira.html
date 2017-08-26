@@ -52,6 +52,12 @@
 		.issue-list .panel-heading:hover {
 			background-color: #ced1f3;
 		}
+		.issue-list .panel-heading .issue-shortcuts {
+			opacity: 0.0;
+		}
+		.issue-list .panel-heading:hover .issue-shortcuts {
+			opacity: 1.0;
+		}
 		.issue-list .panel-title {
 			font-size: 0.8em;
 			font-weight: bold;
@@ -339,24 +345,102 @@
 			});
 		}
 
+		function setupShortcuts() {
+			let shortcuts = {
+				'New': ['plan', 'promote', 'top', 'close'],
+				'To Do': ['demote', 'promote', 'top', 'close'],
+				'In Progress': ['demote', 'promote', 'top', 'close'],
+				'In Review': ['demote', 'top', 'close'],
+				'Planned Low': ['todo', 'promote', 'top', 'close'],
+				'Planned Med': ['todo', 'demote', 'promote', 'top', 'close'],
+				'Planned High': ['todo', 'demote', 'top', 'close'],
+				'Done': [],
+			}
+
+			$('.issue-shortcut').addClass('hidden');
+			Object.keys(shortcuts).forEach( (col) => {
+				let $issueListForCol = $(".issue-list[data-col='"+col+"']");
+				shortcuts[col].forEach( (action) => {
+					$('.'+action+'-issue', $issueListForCol).removeClass('hidden');
+				});
+			});
+		}
+
 		function renderIssue(issue) {
-			let hideDone = issue.resolutiondate === null ? '' : '.hidden';
-			let hidePromote = ['In Review', 'Done', 'Planned High'].includes(issue.col) ? '.hidden' : '';
-			let hideDemote = ['Done', 'New', 'Planned Low'].includes(issue.col) ? '.hidden' : '';
-			let hidePlan = ['New'].includes(issue.col) ? '' : '.hidden';
-			let hideTodo = ['Planned Low', 'Planned Med', 'Planned High'].includes(issue.col) ? '' : '.hidden';
-			return z('li.panel.panel-default', {'data-key': issue.key},
+			let zz = z('li.panel.panel-default', {'data-key': issue.key},
 				z('div.panel-heading',
 					z('div.panel-title', issue.key,
-						z('span.glyphicon.glyphicon-ok.pull-right.close-issue'+hideDone, {'aria-hidden':true}),
-						z('span.glyphicon.glyphicon-arrow-right.pull-right.promote-issue'+hidePromote, {'aria-hidden':true}),
-						z('span.glyphicon.glyphicon-arrow-left.pull-right.demote-issue'+hideDemote, {'aria-hidden':true}),
-						z('span.glyphicon.glyphicon-arrow-down.pull-right.plan-issue'+hidePlan, {'aria-hidden':true}),
-						z('span.glyphicon.glyphicon-arrow-up.pull-right.todo-issue'+hideTodo, {'aria-hidden':true}),
+						z('div.pull-right.issue-shortcuts',
+							z('span.glyphicon.glyphicon-arrow-up.todo-issue.issue-shortcut', {'aria-hidden':true}),
+							z('span.glyphicon.glyphicon-arrow-down.plan-issue.issue-shortcut', {'aria-hidden':true}),
+							z('span.glyphicon.glyphicon-arrow-left.demote-issue.issue-shortcut', {'aria-hidden':true}),
+							z('span.glyphicon.glyphicon-arrow-right.promote-issue.issue-shortcut', {'aria-hidden':true}),
+							z('span.glyphicon.glyphicon-chevron-up.top-issue.issue-shortcut', {'aria-hidden':true}),
+							z('span.glyphicon.glyphicon-ok.close-issue.issue-shortcut', {'aria-hidden':true}),
+						)
 					)
 				),
 				z('div.panel-body', issue.summary)
 			);
+
+			function movePanel(self, toCol) {
+				let $panel = $(self).parents('.panel');
+				let $issueList = $(".issue-list[data-col='"+toCol+"']");
+				$issueList.sortable('option', 'update')(
+					{
+						target: $issueList[0]
+					},
+					{
+						item: $panel.prependTo( $issueList ),
+						sender: true,
+						shortcut: true,
+					}
+				);
+				setupShortcuts();
+			}
+
+			$('.top-issue', zz).click( function() {
+				let thisCol = $(this).parents('.issue-list').data('col');
+				movePanel( this, thisCol );
+			});
+
+			$('.close-issue', zz).click( function() {
+				movePanel( this, 'Done' );
+			});
+
+			$('.todo-issue', zz).click( function() {
+				movePanel( this, 'To Do' );
+			});
+
+			$('.plan-issue', zz).click( function() {
+				movePanel( this, 'Planned High' );
+			});
+
+			$('.demote-issue', zz).click( function() {
+				let thisCol = $(this).parents('.issue-list').data('col');
+				let thisColToNewCol = {
+					'In Review': 'In Progress',
+					'In Progress': 'To Do',
+					'To Do': 'New',
+					'Planned High': 'Planned Med',
+					'Planned Med': 'Planned Low',
+				}
+				movePanel( this, thisColToNewCol[thisCol] );
+			});
+
+			$('.promote-issue', zz).click( function() {
+				let thisCol = $(this).parents('.issue-list').data('col');
+				let thisColToNewCol = {
+					'New': 'To Do',
+					'To Do': 'In Progress',
+					'In Progress': 'In Review',
+					'Planned Low': 'Planned Med',
+					'Planned Med': 'Planned High',
+				}
+				movePanel( this, thisColToNewCol[thisCol] );
+			});
+
+			return zz;
 		}
 
 		function renderCol(col, colLabel, issues) {
@@ -408,26 +492,32 @@
 			issueList.sortable({
 				handle: '.panel-heading', 
 				connectWith: '.issue-list',
-				update: (event, ui) => {
-					if( ui.sender ) {
-						let key = $(ui.item).data('key');
+				update: function (event, ui) {
+					if( this === ui.item.parent()[0] || ui.shortcut ) {
+						let $panel = $(ui.item);
+
+						// Bloop
+						$panel.not(':animated')
+							.effect('scale', {
+								origin: ['middle', 'center'],
+								from: {
+									width: $panel.width() / 2,
+									height: $panel.height() / 2
+								},
+								percent: 100,
+								direction: 'both',
+								easing: 'easeOutBounce'
+							}, 700)
+						;
+
+						let key = $panel.data('key');
 						let toCol = $(event.target).data('col');
-						let fromCol = $(ui.sender).data('col');
 						jiraTransition(key, toCol);
 					}
 				}
 			});
 
-			$('.close-issue').click( function() {
-				let $panel = $(this).parents('.panel')
-				let key = $panel.data('key');
-				jiraTransition(key, 'Done');
-				$panel.fadeOut( 300, () => {
-            		let $done = $(".issue-list[data-col='Done']");
-            		$panel.prependTo($done);
-            		$panel.removeAttr('style');
-        		});
-			});
+			setupShortcuts();
 		}
 
 		function listAsOptions(list) {
@@ -657,7 +747,6 @@
 	<!--
 	<h3>TODO</h3>
 	<ul>
-		<li>Implement transition shortcuts</li>
 		<li>Save sort order</li>
 		<li>Epic tags</li>
 	</ul>
