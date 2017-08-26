@@ -63,6 +63,7 @@
 			background-color: #EEE;
 		}
 		.issue-list .panel-heading .glyphicon {
+			padding-left: 0.5em;
 			color: #AAA;
 		}
 		.issue-list .panel-heading .glyphicon:hover {
@@ -340,10 +341,18 @@
 
 		function renderIssue(issue) {
 			let hideDone = issue.resolutiondate === null ? '' : '.hidden';
+			let hidePromote = ['In Review', 'Done', 'Planned High'].includes(issue.col) ? '.hidden' : '';
+			let hideDemote = ['Done', 'New', 'Planned Low'].includes(issue.col) ? '.hidden' : '';
+			let hidePlan = ['New'].includes(issue.col) ? '' : '.hidden';
+			let hideTodo = ['Planned Low', 'Planned Med', 'Planned High'].includes(issue.col) ? '' : '.hidden';
 			return z('li.panel.panel-default', {'data-key': issue.key},
 				z('div.panel-heading',
 					z('div.panel-title', issue.key,
-						z('span.glyphicon.glyphicon-ok.pull-right.close-issue'+hideDone, {'aria-hidden':true})
+						z('span.glyphicon.glyphicon-ok.pull-right.close-issue'+hideDone, {'aria-hidden':true}),
+						z('span.glyphicon.glyphicon-arrow-right.pull-right.promote-issue'+hidePromote, {'aria-hidden':true}),
+						z('span.glyphicon.glyphicon-arrow-left.pull-right.demote-issue'+hideDemote, {'aria-hidden':true}),
+						z('span.glyphicon.glyphicon-arrow-down.pull-right.plan-issue'+hidePlan, {'aria-hidden':true}),
+						z('span.glyphicon.glyphicon-arrow-up.pull-right.todo-issue'+hideTodo, {'aria-hidden':true}),
 					)
 				),
 				z('div.panel-body', issue.summary)
@@ -364,7 +373,7 @@
 
 		function renderIssues(issues) {
 			let topCols = ['New', 'To Do', 'In Progress', 'In Review'];
-			let botCols = ['Planned High', 'Planned Med', 'Planned Low', 'Done'];
+			let botCols = ['Planned Low', 'Planned Med', 'Planned High', 'Done'];
 			let zz = z('div.issues',
 				z('div.row',
 					topCols.map( (col) => {
@@ -645,10 +654,13 @@
 	</div>
 	<div id="issues-section" class="container-fluid">
 	</div>
+	<!--
 	<h3>TODO</h3>
 	<ul>
+		<li>Implement transition shortcuts</li>
 		<li>Save sort order</li>
 		<li>Epic tags</li>
 	</ul>
+	-->
 </body>
 </html>
