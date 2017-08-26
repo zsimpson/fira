@@ -150,6 +150,10 @@
 		}
 	</script>
 	<script>
+		let projects = {};
+		let issuesByKey = {};
+		let epicsByKey = {};
+
 		let softwareGroup = [
 			'zack',
 			'youssef',
@@ -161,8 +165,6 @@
 			'davidrideout',
 			'daniel ford',
 		];
-
-		let projects = {};
 
 		let jiraStatusToFiraCol = {
 			'New': 'New',
@@ -190,8 +192,6 @@
 			'Planned High': 'High',
 		}
 
-		let issuesByKey = {};
-		
 		let pending = 0;
 		function updatePending(p) {
 			pending = p;
@@ -353,13 +353,34 @@
 				resolutiondate: issue.fields.resolutiondate,
 				assignee: issue.fields.assignee.key,
 				comments: issue.fields.comment.comments,
+				epicKey: issue.fields.customfield_10009,
 				jiraIssue: issue
 			};
 		}
 
+		function jiraGetEpics() {
+			let body = {
+				jql: 'issuetype=Epic AND (status not in (done))',
+				startAt: 0,
+				maxResults: 100000000,
+				fields: [
+					'summary',
+					'status',
+					'issuetype',
+				],
+				fieldsByKeys: false
+			}
+			jira('POST', '/rest/api/2/search', null, body, (data)=>{
+				epicsByKey = data.issues.reduce( (map, i) => {
+					map[i.key] = i;
+					return map;
+				}, {});
+			});
+		}
+
 		function jiraSearch(assignee, onDone) {
 			let body = {
-				jql: 'assignee="'+assignee+'" AND (status not in (done) OR resolutiondate > -7d)',
+				jql: 'assignee="'+assignee+'" AND issuetype!=Epic AND (status not in (done) OR resolutiondate > -7d)',
 				startAt: 0,
 				maxResults: 100000000,
 				fields: [
@@ -374,6 +395,7 @@
 					'priority',
 					'resolutiondate',
 					'comment',
+					'customfield_10009'
 				],
 				fieldsByKeys: false
 			}
@@ -559,8 +581,8 @@
 
 						let key = $panel.data('key');
 						let toCol = $(event.target).data('col');
-						// jiraTransition(key, toCol);
-						// updateOrder(toCol);
+						jiraTransition(key, toCol);
+						updateOrder(toCol);
 					}
 				}
 			});
@@ -732,7 +754,7 @@
 		}
 
 		$(document).ready(function() {
-			// jira('GET', '/rest/api/2/issue/MET-85', null, null, (data)=>{
+			// jira('GET', '/rest/api/2/issue/SI-306', null, null, (data)=>{
 			// 	debugger;
 			// });
 			// jiraSetOrder('MET-85', 1);
@@ -744,8 +766,6 @@
 				}
 				return undefined;
 			});
-
-			getAllProjects();
 
 			let topBar = z('form.form-inline',
 				z('span.logo', 'F*IRA'),
@@ -796,6 +816,8 @@
 			})
 
 			reload();
+			getAllProjects();
+			jiraGetEpics();
 
 			$(document).on( 'click', '.panel-body', (e) => {
 				let key = $(e.target).parents('.panel').data('key');
