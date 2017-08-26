@@ -63,6 +63,7 @@
 			font-weight: bold;
 		}
 		.issue-list .panel-body {
+			cursor: pointer;
 			padding: 0.4em 0.5em 0.4em 0.5em;
 		}
 		.issue-list .panel-body:hover {
@@ -190,8 +191,25 @@
 		}
 
 		let issuesByKey = {};
+		
+		let pending = 0;
+		function updatePending(p) {
+			pending = p;
+			$('#pending').text( p > 0 ? 'pending ('+p+')' : '');
+		}
 
-		function jira(method, path, params, body, success) {
+		function jira(method, path, params, body, success, error) {
+			if( ! error ) {
+				error = (jqXHR, textStatus, errorThrown) => {
+					alert(
+						'Communication with JIRA failed.\n\nPerhaps your JIRA key is mis-configured on the Configure option?\n\n' +
+						'Exact message is: ' + textStatus + ' ' + errorThrown
+					);
+				} 
+			}
+
+			updatePending( pending + 1);
+
 			$.ajax({
 				method: method,
 				contentType: 'application/json',
@@ -199,11 +217,9 @@
 				url: 'http://localhost:8080' + path + (params ? '?' + $.param(params) : ''),
 				data: body ? JSON.stringify(body) : null,
 				success: success,
-				error: (jqXHR, textStatus, errorThrown) => {
-					alert(
-						'Communication with JIRA failed.\n\nPerhaps your JIRA key is mis-configured on the Configure option?\n\n' +
-						'Exact message is: ' + textStatus + ' ' + errorThrown
-					);
+				error,
+				complete: () => {
+					updatePending( pending - 1);
 				}
 			});
 		}
@@ -286,6 +302,31 @@
 			});
 		}
 
+		function padToFour(i) {
+			return i <= 9999 ? ('000'+i).slice(-4) : i;
+		}
+
+		function jiraSetOrder(key, order) {
+			jira('GET', '/rest/api/2/issue/'+key, null, null, (data) => {
+				let labelCommands = data.fields.labels.reduce( (commands, label) => {
+					if( label.startsWith('firaorder-') ) {
+						commands.push( { remove: label } );
+					}
+					return commands;
+				}, []);
+
+				labelCommands.push( { add: 'firaorder-'+padToFour(order) } )
+
+				let putBody = {
+					update: {
+						labels: labelCommands
+					}
+				}
+
+				jira('PUT', '/rest/api/2/issue/'+key, null, putBody, null, ()=>{});
+			});
+		}
+
 		function jiraToFiraIssue(issue) {
 			let col = jiraStatusToFiraCol[issue.fields.status.name];
 			if( col == 'Planned' ) {
@@ -297,12 +338,18 @@
 					col = 'Planned Med';
 				}
 			}
+			let order = issue.fields.labels.find( (i) => { return i.startsWith('firaorder-'); } );
+			let sort = order;
+			if( col == 'Done' ) {
+				sort = issue.fields.resolutiondate;
+			}
 			return {
 				key: issue.key,
 				summary: issue.fields.summary,
 				description: issue.fields.description,
 				col: col,
-				sort: issue.fields.customfield_10012,
+				order: order,
+				sort: sort,
 				resolutiondate: issue.fields.resolutiondate,
 				assignee: issue.fields.assignee.key,
 				comments: issue.fields.comment.comments,
@@ -324,7 +371,6 @@
 					'reporter',
 					'description',
 					'labels',
-					'customfield_10012',
 					'priority',
 					'resolutiondate',
 					'comment',
@@ -359,15 +405,19 @@
 
 			$('.issue-shortcut').addClass('hidden');
 			Object.keys(shortcuts).forEach( (col) => {
-				let $issueListForCol = $(".issue-list[data-col='"+col+"']");
+				let $issueListForCol = issueListForCol(col);
 				shortcuts[col].forEach( (action) => {
 					$('.'+action+'-issue', $issueListForCol).removeClass('hidden');
 				});
 			});
 		}
 
+		function issueListForCol(col) {
+			return $(".issue-list[data-col='"+col+"']");
+		}
+
 		function renderIssue(issue) {
-			let zz = z('li.panel.panel-default', {'data-key': issue.key},
+			let zz = z('li.panel.panel-default.issue-panel', {'data-key': issue.key},
 				z('div.panel-heading',
 					z('div.panel-title', issue.key,
 						z('div.pull-right.issue-shortcuts',
@@ -385,7 +435,7 @@
 
 			function movePanel(self, toCol) {
 				let $panel = $(self).parents('.panel');
-				let $issueList = $(".issue-list[data-col='"+toCol+"']");
+				let $issueList = issueListForCol(toCol);
 				$issueList.sortable('option', 'update')(
 					{
 						target: $issueList[0]
@@ -448,6 +498,9 @@
 				z('h4', colLabel),
 				z('ul.issue-list.list-unstyled', {'data-col': col},
 					issues.sort( (a, b)=> {
+						if(col == 'Done') {
+							return a.sort > b.sort ? -1 : (a.sort < b.sort ? 1 : 0);
+						}
 						return a.sort > b.sort ? 1 : (a.sort < b.sort ? -1 : 0);
 					}).map( i => renderIssue(i) ),
 					z('div.hidden-placeholder')
@@ -497,6 +550,7 @@
 						let $panel = $(ui.item);
 
 						// Bloop
+						/*
 						$panel.not(':animated')
 							.effect('scale', {
 								origin: ['middle', 'center'],
@@ -509,15 +563,28 @@
 								easing: 'easeOutBounce'
 							}, 700)
 						;
+						*/
 
 						let key = $panel.data('key');
 						let toCol = $(event.target).data('col');
 						jiraTransition(key, toCol);
+						updateOrder(toCol);
 					}
 				}
 			});
 
 			setupShortcuts();
+		}
+
+		function updateOrder(col) {
+			if( col == 'Done' ) {
+				return;
+			}
+			let $issueList = issueListForCol(col);
+			$issueList.children('.issue-panel').each( function(i) {
+				let key = $(this).data('key');
+				jiraSetOrder(key, i);
+			});
 		}
 
 		function listAsOptions(list) {
@@ -673,9 +740,10 @@
 		}
 
 		$(document).ready(function() {
-			// jira('GET', '/rest/api/2/issue/SI-300', null, null, (data)=>{
+			// jira('GET', '/rest/api/2/issue/MET-85', null, null, (data)=>{
 			// 	debugger;
 			// });
+			// jiraSetOrder('MET-85', 1);
 
 			getAllProjects();
 
@@ -686,6 +754,7 @@
 					z('select.form-control#filter-assignee')
 				),
 				z('div.pull-right',
+					z('span#pending', 0),
 					z('button.btn.btn-link#btn-configure', 'Configure'),
 					z('button.btn.btn-success#btn-new-issue', 'New issue'),
 				)
@@ -747,7 +816,6 @@
 	<!--
 	<h3>TODO</h3>
 	<ul>
-		<li>Save sort order</li>
 		<li>Epic tags</li>
 	</ul>
 	-->
