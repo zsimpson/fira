@@ -53,6 +53,7 @@ class Handler(SimpleHTTPRequestHandler):
 	do_PUT = do_GET
 	do_DELETE = do_GET
 
-
-httpd = BaseHTTPServer.HTTPServer(('127.0.0.1', 8080), Handler)
+port = 8080
+print 'Server started port', port
+httpd = BaseHTTPServer.HTTPServer(('0.0.0.0', port), Handler)
 httpd.serve_forever()

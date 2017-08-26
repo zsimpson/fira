@@ -435,6 +435,11 @@
 
 			function movePanel(self, toCol) {
 				let $panel = $(self).parents('.panel');
+
+				if( toCol === 'Done' ) {
+					$panel.effect('explode', {pieces:24}, 500);
+				}
+
 				let $issueList = issueListForCol(toCol);
 				$issueList.sortable('option', 'update')(
 					{
@@ -446,6 +451,9 @@
 						shortcut: true,
 					}
 				);
+				if( toCol !== 'Done' ) {
+					$panel.effect('shake', {distance:15, times:2}, 500);
+				}
 				setupShortcuts();
 			}
 
@@ -549,26 +557,10 @@
 					if( this === ui.item.parent()[0] || ui.shortcut ) {
 						let $panel = $(ui.item);
 
-						// Bloop
-						/*
-						$panel.not(':animated')
-							.effect('scale', {
-								origin: ['middle', 'center'],
-								from: {
-									width: $panel.width() / 2,
-									height: $panel.height() / 2
-								},
-								percent: 100,
-								direction: 'both',
-								easing: 'easeOutBounce'
-							}, 700)
-						;
-						*/
-
 						let key = $panel.data('key');
 						let toCol = $(event.target).data('col');
-						jiraTransition(key, toCol);
-						updateOrder(toCol);
+						// jiraTransition(key, toCol);
+						// updateOrder(toCol);
 					}
 				}
 			});
@@ -745,6 +737,14 @@
 			// });
 			// jiraSetOrder('MET-85', 1);
 
+			$(window).bind('beforeunload', function() {
+				if( pending ) {
+					// Custom messages no longer supported
+					return true;
+				}
+				return undefined;
+			});
+
 			getAllProjects();
 
 			let topBar = z('form.form-inline',
@@ -756,6 +756,7 @@
 				z('div.pull-right',
 					z('span#pending', 0),
 					z('button.btn.btn-link#btn-configure', 'Configure'),
+					z('button.btn.btn-link#btn-refresh', 'Refresh'),
 					z('button.btn.btn-success#btn-new-issue', 'New issue'),
 				)
 			);
@@ -768,6 +769,12 @@
 			$('#filter-assignee').change( function() {
 				setCookie('filter-assignee', $(this).val() );
 				reload();
+			});
+
+			$('#btn-refresh').click( (e) => {
+				e.preventDefault();
+				reload();
+				return false;
 			});
 
 			$('#btn-new-issue').click( () => {
@@ -817,6 +824,7 @@
 	<h3>TODO</h3>
 	<ul>
 		<li>Epic tags</li>
+		<li>Priority queue to give reload priority</li>
 	</ul>
 	-->
 </body>
