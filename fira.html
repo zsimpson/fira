@@ -23,6 +23,9 @@
 			from { transform: scale(1) rotate(0deg);}
 			to { transform: scale(1) rotate(360deg);}
 		}
+		a {
+			cursor: pointer;
+		}
 		.logo {
 			position: relative;
 			top: 0.2em;
@@ -139,10 +142,19 @@
 		}
 	</script>
 	<script>
-		let users = [
-			'Zack',
-			'Mike McCabe',
-		]
+		let softwareGroup = [
+			'zack',
+			'youssef',
+			'willy',
+			'pablo',
+			'mike mccabe',
+			'kyle heath',
+			'guy',
+			'davidrideout',
+			'daniel ford',
+		];
+
+		let projects = {};
 
 		let jiraStatusToFiraCol = {
 			'New': 'New',
@@ -190,19 +202,19 @@
 		}
 
 		function jiraCreateIssue(fields) {
+			let project = projects.find( i => i.name === fields.project );
 			let postBody = {
 				fields: {
 					project: {
-						id: 12902
+						id: project.id
 					},
 					summary: fields.summary,
 					description: fields.description,
 					assignee: {
-						name: 'zack'
+						name: fields.assignee
 					},
 					issuetype: {
-						id: 1
-						// name: "Chore"
+						id: 3 // Chore
 					}
 				}
 			}
@@ -213,7 +225,19 @@
 			let putBody = {
 				fields: {
 					summary: fields.summary,
-					description: fields.description
+					description: fields.description,
+					assignee: {
+						name: fields.assignee
+					},
+				}
+			}
+			if( fields.new_comment ) {
+				putBody['update'] = {
+					comment: [{
+						add: {
+							body: fields.new_comment
+						}
+					}]
 				}
 			}
 			jira('PUT', '/rest/api/2/issue/'+key, null, putBody);
@@ -273,13 +297,15 @@
 				col: col,
 				sort: issue.fields.customfield_10012,
 				resolutiondate: issue.fields.resolutiondate,
+				assignee: issue.fields.assignee.key,
+				comments: issue.fields.comment.comments,
 				jiraIssue: issue
 			};
 		}
 
 		function jiraSearch(assignee, onDone) {
 			let body = {
-				jql: 'assignee="'+assignee+'"',
+				jql: 'assignee="'+assignee+'" AND (status not in (done) OR resolutiondate > -7d)',
 				startAt: 0,
 				maxResults: 100000000,
 				fields: [
@@ -294,7 +320,7 @@
 					'customfield_10012',
 					'priority',
 					'resolutiondate',
-					'comments',
+					'comment',
 				],
 				fieldsByKeys: false
 			}
@@ -313,10 +339,11 @@
 		}
 
 		function renderIssue(issue) {
+			let hideDone = issue.resolutiondate === null ? '' : '.hidden';
 			return z('li.panel.panel-default', {'data-key': issue.key},
 				z('div.panel-heading',
 					z('div.panel-title', issue.key,
-						z('span.glyphicon.glyphicon-ok.pull-right.close-issue', {'aria-hidden':true})
+						z('span.glyphicon.glyphicon-ok.pull-right.close-issue'+hideDone, {'aria-hidden':true})
 					)
 				),
 				z('div.panel-body', issue.summary)
@@ -394,6 +421,10 @@
 			});
 		}
 
+		function listAsOptions(list) {
+			return list.sort().map( i => z('option', i) );
+		}
+
 		function createConfigureForm() {
 			let jiraCookie = getCookie('jiracookie');
 			let zz = z('div',
@@ -406,7 +437,7 @@
 			return zz;
 		}
 
-		function createIssueForm(issue) {
+		function createIssueForm(issue, isNew) {
 			let zz = z('div',
 				z('div.form-group',
 					z('label', {for:'summary'}, 'Summary'),
@@ -415,13 +446,51 @@
 				z('div.form-group',
 					z('label', {for:'description'}, 'Description'),
 					z('textarea.form-control', {name:'description', rows:4})
+				),
+				z('div.form-group',
+					z('label', {for:'assignee'}, 'Assignee'),
+					z('select.form-control', {name:'assignee'},
+						listAsOptions(softwareGroup)
+					)
 				)
 			);
 
-			let issueFields = ['summary', 'description'];
+			if( isNew ) {
+				let projectNames = projects.map( p => p.name );
+				let project = z('div.form-group',
+					z('label', {for:'project'}, 'Project'),
+					z('select.form-control#last-project', {name:'project'},
+						listAsOptions(projectNames)
+					)
+				);
+				$(zz).append( project );
+				$('#last-project', zz).val( getCookie('lastProject') );
+			}
+
+			let issueFields = ['summary', 'description', 'assignee'];
 			issueFields.map( (field) => {
 				$('.form-control[name='+field+']', zz).val( issue[field] );
 			});
+
+			if( ! isNew ) {
+				let comments = z('div.panel.panel-default',
+					z('div.panel-heading', 'Comments'),
+					z('ul.list-group',
+						issue.comments.map( (c) => {
+							return z('li.list-group-item', 
+								z('strong', c.author.name),
+								z('span', ': ' + c.body)
+							);
+						})
+					)
+				);
+				$('.list-group', comments).append(
+					z('li.list-group-item',
+						z('input#new-comment.form-control', {name:'new_comment', type:'text', placeholder:'New comment'})
+					)
+				);
+				$(zz).append( comments );
+			}
 
 			return zz;
 		}
@@ -482,46 +551,49 @@
 			});
 		}
 
-		$(document).ready(function() {
-			// To get all users:
-			/*
+		function getAllUsers() {
+			// For reference, not currently used.
 			jira('GET', '/rest/api/latest/user/search', {startAt:0, maxResults:1000, username:'%'}, null, (data)=>{
 				let users = data.map( (i) => {
 					if( i.active ) {
 						return i.key;
 					}
 				});
-				let userOptions = users.map( (u) => {
-					return z('option', u);
-				});
-				$('#filter-assignee').html(userOptions);
 			});
-			*/
+		}
+
+		function getAllProjects() {
+			jira('GET', '/rest/api/2/project', {startAt:0, maxResults:1000}, null, (data)=>{
+				projects = data.map( (p) => {
+					return {
+						id: p.id,
+						name: p.name,
+					}
+				});
+			});
+		}
+
+		$(document).ready(function() {
+			// jira('GET', '/rest/api/2/issue/SI-300', null, null, (data)=>{
+			// 	debugger;
+			// });
+
+			getAllProjects();
 
 			let topBar = z('form.form-inline',
 				z('span.logo', 'F*IRA'),
-				z('button.btn.btn-success#btn-new-issue', 'New issue'),
-				z('button.btn.btn-link#btn-configure', 'Configure'),
 				z('div.form-group',
 					z('label', {for:'filter-assignee'}, 'Filter for assignee:'),
 					z('select.form-control#filter-assignee')
+				),
+				z('div.pull-right',
+					z('button.btn.btn-link#btn-configure', 'Configure'),
+					z('button.btn.btn-success#btn-new-issue', 'New issue'),
 				)
 			);
 			$('#nav-section').html(topBar);
 
-			let softwareGroup = [
-				'zack',
-				'youssef',
-				'willy',
-				'pablo',
-				'mike mccabe',
-				'kyle heath',
-				'guy',
-				'davidrideout',
-				'daniel ford',
-			];
-
-			$('#filter-assignee').html( softwareGroup.sort().map( u => z('option', u) ) );
+			$('#filter-assignee').html( listAsOptions(softwareGroup) );
 
 			$('#filter-assignee').val( getCookie('filter-assignee') );
 
@@ -531,9 +603,10 @@
 			});
 
 			$('#btn-new-issue').click( () => {
-				let newIssue = { key: 'New Issue' }
-				createDialog( 'New Issue', createIssueForm(newIssue), (fields) => {
-					jiraCreateIssue(fields);
+				let newIssue = { assignee: $('#filter-assignee').val() }
+				createDialog( 'New Issue', createIssueForm(newIssue, true), (fields) => {
+					setCookie( 'lastProject', fields.project );
+					jiraCreateIssue( fields );
 					reload();
 				});
 				return false;
@@ -551,11 +624,17 @@
 
 			$(document).on( 'click', '.panel-body', (e) => {
 				let key = $(e.target).parents('.panel').data('key');
-				createDialog( 'Edit Issue ' + key, createIssueForm(issuesByKey[key]), (fields) => {
+				let origIssue = issuesByKey[key];
+				createDialog( 'Edit Issue ' + key, createIssueForm(origIssue, false), (fields) => {
 					jiraUpdateIssue(key, fields);
-					let issue = issuesByKey[key];
-					issue = Object.assign(issue, fields);
-					$('.panel[data-key='+key+']').replaceWith( renderIssue(issue) );
+					if( fields.assignee !== origIssue.assignee || fields.new_comment !== '' ) {
+						reload();
+					}
+					else {
+						let newIssue = issuesByKey[key];
+						newIssue = Object.assign(newIssue, fields);
+						$('.panel[data-key='+key+']').replaceWith( renderIssue(newIssue) );
+					}
 				});
 			});
 		});
@@ -566,13 +645,10 @@
 	</div>
 	<div id="issues-section" class="container-fluid">
 	</div>
+	<h3>TODO</h3>
 	<ul>
-		<li>Project, issue type, assignee softcode</li>
-		<li>Edit assignee</li>
-		<li>Comments</li>
 		<li>Save sort order</li>
 		<li>Epic tags</li>
-		<li>Speed up by limiting done query?</li>
 	</ul>
 </body>
 </html>
