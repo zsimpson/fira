@@ -38,6 +38,12 @@
 			padding-left: 0.5em;
 			padding-right: 0.5em;
 		}
+		.btn-show-labels {
+			margin-left: 1em;
+		}
+		.btn-show-labels label {
+			font-weight: bold;
+		}
 		.form-inline label {
 			padding-right: 0.5em;
 		}
@@ -88,6 +94,11 @@
 		.ui-sortable-helper {
 			opacity: 0.7;
 			transform: rotate(4deg);
+		}
+		.label {
+			display: inline-block;
+			margin-right: 0.2em;
+			cursor: pointer;
 		}
 	</style>
 	<script>
@@ -153,6 +164,7 @@
 		let projects = {};
 		let issuesByKey = {};
 		let epicsByKey = {};
+		let allLabels = [];
 
 		let softwareGroup = [
 			'zack',
@@ -356,6 +368,7 @@
 				assignee: issue.fields.assignee.key,
 				comments: issue.fields.comment.comments,
 				epicKey: issue.fields.customfield_10009,
+				labels: issue.fields.labels,
 				jiraIssue: issue
 			};
 		}
@@ -404,13 +417,22 @@
 			jira('POST', '/rest/api/2/search', null, body, (data)=>{
 				// let issues = data.issues.filter(i => i.fields.issuetype.name !== 'Epic' && i.fields.issuetype.name !== 'Story');
 				let issues = data.issues;
-				let myIssues = issues.map((i) => {
+				let myIssues = issues.map( (i) => {
 					return jiraToFiraIssue(i);
 				});
 				issuesByKey = myIssues.reduce( (map, i) => {
 					map[i.key] = i;
 					return map;
 				}, {});
+
+				allLabels = {};
+				myIssues.forEach( (i) => {
+					i.labels.forEach( (l) => {
+						allLabels[l]= true;
+					});
+				});
+				allLabels = Object.keys(allLabels).sort();
+
 				onDone(myIssues);
 			});
 		}
@@ -454,7 +476,14 @@
 						)
 					)
 				),
-				z('div.panel-body', issue.summary)
+				z('div.panel-body', 
+					z('div.summary', issue.summary),
+					z('div.issue-labels',
+						issue.labels.map( (label) => {
+							return z('span.label.label-primary', label);
+						})
+					),
+				)
 			);
 
 			function movePanel(self, toCol) {
@@ -480,6 +509,8 @@
 				}
 				setupShortcuts();
 			}
+
+			$('.issue-labels', zz).toggle( $('#show-labels').is(":checked") );
 
 			$('.top-issue', zz).click( function() {
 				let thisCol = $(this).parents('.issue-list').data('col');
@@ -620,6 +651,7 @@
 		}
 
 		function createIssueForm(issue, isNew) {
+
 			let zz = z('div',
 				z('div.form-group',
 					z('label', {for:'summary'}, 'Summary'),
@@ -633,6 +665,18 @@
 					z('label', {for:'assignee'}, 'Assignee'),
 					z('select.form-control', {name:'assignee'},
 						listAsOptions(softwareGroup)
+					)
+				),
+				z('div.container-fluid',
+					z('div.row',
+						z('div.form-group.col-sm-4',
+							z('label', 'Labels on this issue'),
+							z('div.labels-on')
+						),
+						z('div.form-group.form-group.col-sm-8',
+							z('label', 'Labels not on this issue'),
+							z('div.labels-off')
+						),
 					)
 				)
 			);
@@ -673,6 +717,26 @@
 				);
 				$(zz).append( comments );
 			}
+
+			function setupLabels() {
+				onLabels = issue.labels.map( (label) => { return z('span.label.label-primary', label); } )
+				offLabels = allLabels.map( (label) => {
+					if( !(label in issue.labels) ) {
+						return z('span.label.label-default', label);
+					}
+				}).filter( i => i );
+				$('.labels-on', zz).html(onLabels);
+				$('.labels-off', zz).html(offLabels);
+			}
+
+			setupLabels();
+
+			$('.labels-on .label').click( function() {
+				// I don't think this is going to work because the aren't in the DOM yet
+				let toRemove = $(this).text();
+				issue.labels = issue.labels.filter( i => i !== toRemove );
+				setupLabels();
+			});
 
 			return zz;
 		}
@@ -775,14 +839,22 @@
 					z('label', {for:'filter-assignee'}, 'Filter for assignee:'),
 					z('select.form-control#filter-assignee')
 				),
-				z('div.pull-right',
+				z('div.btn-show-labels.checkbox',
+					z('label', z('input#show-labels', {type:'checkbox'}), ' Show labels')
+				),
+  				z('div.pull-right',
 					z('span#pending', 0),
 					z('button.btn.btn-link#btn-configure', 'Configure'),
 					z('button.btn.btn-link#btn-refresh', 'Refresh'),
 					z('button.btn.btn-success#btn-new-issue', 'New issue'),
 				)
 			);
+
 			$('#nav-section').html(topBar);
+
+			$('#show-labels').change( function() {
+				$('.issue-labels').toggle( $(this).is(":checked") );
+			});
 
 			$('#filter-assignee').html( listAsOptions(softwareGroup) );
 
@@ -819,7 +891,7 @@
 
 			reload();
 			getAllProjects();
-			jiraGetEpics();
+			// jiraGetEpics();
 
 			$(document).on( 'click', '.panel-body', (e) => {
 				let key = $(e.target).parents('.panel').data('key');

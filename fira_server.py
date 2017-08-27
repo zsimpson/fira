@@ -61,5 +61,11 @@ class ThreadedHTTPServer(ThreadingMixIn, HTTPServer):
 
 port = 8080
 print 'Server started port', port
-httpd = ThreadedHTTPServer(('0.0.0.0', port), Handler)
-httpd.serve_forever()
+while True:
+	try:
+		httpd = ThreadedHTTPServer(('0.0.0.0', port), Handler)
+		httpd.serve_forever()
+	except KeyboardInterrupt:
+		break
+	except:
+		pass
