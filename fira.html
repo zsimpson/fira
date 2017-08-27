@@ -244,6 +244,7 @@
 
 		function jiraCreateIssue(fields) {
 			let project = projects.find( i => i.name === fields.project );
+			debugger;
 			let postBody = {
 				fields: {
 					project: {
@@ -256,16 +257,18 @@
 					},
 					issuetype: {
 						id: 3 // Chore
-					}
+					},
+					labels: fields.nonFiraLabels
 				}
 			}
-			jira('POST', '/rest/api/2/issue', null, postBody);
+			jira('POST', '/rest/api/2/issue', null, postBody, (data) => {
+				// debugger;
+			});
 		}
 
 		function jiraUpdateIssue(key, fields) {
 			let labels = fields.nonFiraLabels;
 			labels = labels.concat( issuesByKey[key].firaLabels );
-			debugger;
 			let putBody = {
 				fields: {
 					summary: fields.summary,
@@ -923,8 +926,18 @@
 			});
 
 			$('#btn-new-issue').click( () => {
-				let newIssue = { assignee: $('#filter-assignee').val() }
-				createDialog( 'New Issue', createIssueForm(newIssue, true), isseDialogSetup, (fields) => {
+				let newIssue = {
+					key: 'new',
+					firaLabels: [],
+					nonFiraLabels: [],
+					description: '',
+					summary: '',
+					assignee: $('#filter-assignee').val()
+				}
+				issuesByKey[newIssue.key] = newIssue;
+				createDialog( 'New Issue', createIssueForm(newIssue, true), issueDialogSetup, (fields) => {
+					fields.nonFiraLabels = fields.nonFiraLabels.split(',');
+					delete issuesByKey['new'];
 					setCookie( 'lastProject', fields.project );
 					jiraCreateIssue( fields );
 					reload();
@@ -971,7 +984,7 @@
 	<!--
 	<h3>TODO</h3>
 	<ul>
-		<li>Epic tags</li>
+		<li>Refactor create</li>
 	</ul>
 	-->
 </body>
