@@ -100,6 +100,12 @@
 			margin-right: 0.2em;
 			cursor: pointer;
 		}
+		.new-label {
+			margin-top: 1em;
+		}
+		.loading {
+			color: gray;
+		}
 	</style>
 	<script>
 		// Inspired by hyperscript, with no dependencies and a bit simpler
@@ -257,6 +263,9 @@
 		}
 
 		function jiraUpdateIssue(key, fields) {
+			let labels = fields.nonFiraLabels;
+			labels = labels.concat( issuesByKey[key].firaLabels );
+			debugger;
 			let putBody = {
 				fields: {
 					summary: fields.summary,
@@ -264,6 +273,7 @@
 					assignee: {
 						name: fields.assignee
 					},
+					labels: labels
 				}
 			}
 			if( fields.new_comment ) {
@@ -329,13 +339,16 @@
 					return commands;
 				}, []);
 
-				labelCommands.push( { add: 'firaorder-'+padToFour(order) } )
+				let firaLabel = 'firaorder-' + padToFour(order);
+				labelCommands.push( { add: firaLabel } )
 
 				let putBody = {
 					update: {
 						labels: labelCommands
 					}
 				}
+
+				issuesByKey[key].firaLabels = [firaLabel];
 
 				jira('PUT', '/rest/api/2/issue/'+key, null, putBody, null, ()=>{});
 			});
@@ -357,6 +370,11 @@
 			if( col == 'Done' ) {
 				sort = issue.fields.resolutiondate;
 			}
+
+			let labels = issue.fields.labels || [];
+			let firaLabels = labels.filter( i => i.startsWith('firaorder-') );
+			let nonFiraLabels = labels.filter( i => !i.startsWith('firaorder-') );
+
 			return {
 				key: issue.key,
 				summary: issue.fields.summary,
@@ -368,7 +386,8 @@
 				assignee: issue.fields.assignee.key,
 				comments: issue.fields.comment.comments,
 				epicKey: issue.fields.customfield_10009,
-				labels: issue.fields.labels,
+				firaLabels,
+				nonFiraLabels,
 				jiraIssue: issue
 			};
 		}
@@ -427,7 +446,7 @@
 
 				allLabels = {};
 				myIssues.forEach( (i) => {
-					i.labels.forEach( (l) => {
+					i.nonFiraLabels.forEach( (l) => {
 						allLabels[l]= true;
 					});
 				});
@@ -479,7 +498,7 @@
 				z('div.panel-body', 
 					z('div.summary', issue.summary),
 					z('div.issue-labels',
-						issue.labels.map( (label) => {
+						issue.nonFiraLabels.map( (label) => {
 							return z('span.label.label-primary', label);
 						})
 					),
@@ -651,8 +670,7 @@
 		}
 
 		function createIssueForm(issue, isNew) {
-
-			let zz = z('div',
+			let zz = z('div.issue-form', {'data-key': issue.key},
 				z('div.form-group',
 					z('label', {for:'summary'}, 'Summary'),
 					z('input.form-control', {name:'summary'})
@@ -670,8 +688,10 @@
 				z('div.container-fluid',
 					z('div.row',
 						z('div.form-group.col-sm-4',
+							z('input.hidden', {name: 'nonFiraLabels'}),
 							z('label', 'Labels on this issue'),
-							z('div.labels-on')
+							z('div.labels-on'),
+							z('input.form-control.new-label', {name:'new_label', placeholder:'New label'})
 						),
 						z('div.form-group.form-group.col-sm-8',
 							z('label', 'Labels not on this issue'),
@@ -718,30 +738,10 @@
 				$(zz).append( comments );
 			}
 
-			function setupLabels() {
-				onLabels = issue.labels.map( (label) => { return z('span.label.label-primary', label); } )
-				offLabels = allLabels.map( (label) => {
-					if( !(label in issue.labels) ) {
-						return z('span.label.label-default', label);
-					}
-				}).filter( i => i );
-				$('.labels-on', zz).html(onLabels);
-				$('.labels-off', zz).html(offLabels);
-			}
-
-			setupLabels();
-
-			$('.labels-on .label').click( function() {
-				// I don't think this is going to work because the aren't in the DOM yet
-				let toRemove = $(this).text();
-				issue.labels = issue.labels.filter( i => i !== toRemove );
-				setupLabels();
-			});
-
 			return zz;
 		}
 
-		function createDialog(title, formBody, onSave) {
+		function createDialog(title, formBody, afterRender, onSave) {
 			let dialogFormId = 'form-'+Date.now();
 			let zz = z('div.modal.fade', {role:'dialog'},
 				z('div.modal-dialog.modal-lg',
@@ -766,6 +766,10 @@
 
 			$('body').append(zz);
 
+			if( afterRender ) {
+				afterRender(zz);
+			}
+
 			$(zz).modal();
 
 			$('form', zz).submit( () => {
@@ -785,9 +789,56 @@
 			return zz;
 		}
 
+		function issueDialogSetup(dialog) {
+			let key = $('.issue-form', dialog).data('key');
+			let issue = issuesByKey[key];
+
+			$('.new-label').keypress( function(e) {
+				if(e.which == 13) {
+					let label = $(this).val();
+					$(this).val('');
+					issue.nonFiraLabels.push( label );
+					setupLabels();
+					return false;
+				}
+			});
+
+			function setupLabels() {
+				issue.nonFiraLabels = Array.from(new Set(issue.nonFiraLabels)).sort();
+				let onLabels = issue.nonFiraLabels;
+				let offLabels = allLabels.filter( i => !onLabels.includes(i) ).sort();
+				$('input[name=nonFiraLabels]', dialog).val( onLabels );
+
+				$('.labels-on', dialog).html(
+					onLabels.map( (label) => {
+						return z('div.label.label-primary', label);
+					})
+				);
+
+				$('.labels-off', dialog).html(
+					offLabels.map( (label) => {
+						return z('div.label.label-default', label);
+					})
+				)
+
+				$('.labels-on .label', dialog).click( function() {
+					let label = $(this).text();
+					issue.nonFiraLabels = issue.nonFiraLabels.filter( i => i !== label );
+					setupLabels();
+				});
+				$('.labels-off .label', dialog).click( function() {
+					let label = $(this).text();
+					issue.nonFiraLabels.push( label );
+					setupLabels();
+				});
+			}
+
+			setupLabels();
+		}
+
 		function reload() {
 			let assignee = $('#filter-assignee').val()
-			let waiting = z('h3.text-center',
+			let waiting = z('h3.text-center.loading',
 				z('span.glyphicon.glyphicon-refresh.spinning'),
 				z('span', ' Loading...')
 			);
@@ -873,7 +924,7 @@
 
 			$('#btn-new-issue').click( () => {
 				let newIssue = { assignee: $('#filter-assignee').val() }
-				createDialog( 'New Issue', createIssueForm(newIssue, true), (fields) => {
+				createDialog( 'New Issue', createIssueForm(newIssue, true), isseDialogSetup, (fields) => {
 					setCookie( 'lastProject', fields.project );
 					jiraCreateIssue( fields );
 					reload();
@@ -882,7 +933,7 @@
 			});
 
 			$('#btn-configure').click( () => {
-				createDialog( 'Configure', createConfigureForm(), (fields) => {
+				createDialog( 'Configure', createConfigureForm(), null, (fields) => {
 					setCookie('jiracookie', fields.jiracookie);
 					reload();
 				});
@@ -895,16 +946,17 @@
 
 			$(document).on( 'click', '.panel-body', (e) => {
 				let key = $(e.target).parents('.panel').data('key');
-				let origIssue = issuesByKey[key];
-				createDialog( 'Edit Issue ' + key, createIssueForm(origIssue, false), (fields) => {
+				let issue = issuesByKey[key];
+				createDialog( 'Edit Issue ' + key, createIssueForm(issue, false), issueDialogSetup, (fields) => {
+					fields.nonFiraLabels = fields.nonFiraLabels.split(',');
 					jiraUpdateIssue(key, fields);
-					if( fields.assignee !== origIssue.assignee || fields.new_comment !== '' ) {
+					if( fields.assignee !== issue.assignee || fields.new_comment !== '' ) {
 						reload();
 					}
 					else {
-						let newIssue = issuesByKey[key];
-						newIssue = Object.assign(newIssue, fields);
-						$('.panel[data-key='+key+']').replaceWith( renderIssue(newIssue) );
+						issue = Object.assign(issue, fields);
+						issuesByKey[key] = issue;
+						$('.panel[data-key='+key+']').replaceWith( renderIssue(issue) );
 					}
 				});
 			});
