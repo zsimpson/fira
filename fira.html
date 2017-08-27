@@ -277,13 +277,15 @@
 				else {
 					jiraStatus = firaColToJiraStatus[toCol];
 				}
-				transition = {
-					transition: {
-						id: transitions.transitions.find(t => t.to.name === jiraStatus).id
+				let t = transitions.transitions.find(t => t.to.name === jiraStatus);
+				if( t ) {
+					transition = {
+						transition: {
+							id: t.id
+						}
 					}
+					jira('POST', '/rest/api/2/issue/'+key+'/transitions', null, transition);
 				}
-				jira('POST', '/rest/api/2/issue/'+key+'/transitions', null, transition);
-
 				let actions = [];
 				if( toPlanned ) {
 					newPriority = firaPlannedColToPriority[toCol];
@@ -846,7 +848,6 @@
 	<h3>TODO</h3>
 	<ul>
 		<li>Epic tags</li>
-		<li>Priority queue to give reload priority</li>
 	</ul>
 	-->
 </body>

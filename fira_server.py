@@ -2,9 +2,10 @@
 import httplib
 import sys
 import urllib
-import BaseHTTPServer
+import threading
 from SimpleHTTPServer import SimpleHTTPRequestHandler
-
+from BaseHTTPServer import HTTPServer, BaseHTTPRequestHandler
+from SocketServer import ThreadingMixIn
 
 class Handler(SimpleHTTPRequestHandler):
 	protocol_version = 'HTTP/1.0'
@@ -53,7 +54,12 @@ class Handler(SimpleHTTPRequestHandler):
 	do_PUT = do_GET
 	do_DELETE = do_GET
 
+
+class ThreadedHTTPServer(ThreadingMixIn, HTTPServer):
+    """Handle requests in a separate thread."""
+
+
 port = 8080
 print 'Server started port', port
-httpd = BaseHTTPServer.HTTPServer(('0.0.0.0', port), Handler)
+httpd = ThreadedHTTPServer(('0.0.0.0', port), Handler)
 httpd.serve_forever()
