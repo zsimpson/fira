@@ -83,6 +83,9 @@
 			color: #0A0;
 			cursor: pointer;
 		}
+		.issue-list .issue-production {
+			background-color: #f5ecac;
+		}
 		.hidden-placeholder {
 			min-height: 50px;
 		}
@@ -153,6 +156,31 @@
 				}
 			}
 			return e;
+		}
+
+		function timeSince(date) {
+			let seconds = Math.floor((new Date() - date) / 1000);
+			let interval = Math.floor(seconds / 31536000);
+			if( interval > 1 ) {
+				return interval + " years";
+			}
+			interval = Math.floor(seconds / 2592000);
+			if( interval > 1 ) {
+				return interval + " months";
+			}
+			interval = Math.floor(seconds / 86400);
+			if( interval > 1 ) {
+				return interval + " days";
+			}
+			interval = Math.floor(seconds / 3600);
+			if( interval > 1 ) {
+				return interval + " hours";
+			}
+			interval = Math.floor(seconds / 60);
+			if( interval > 1 ) {
+				return interval + " minutes";
+			}
+			return Math.floor(seconds) + " seconds";
 		}
 
 		function setCookie(name, value) {
@@ -244,7 +272,6 @@
 
 		function jiraCreateIssue(fields) {
 			let project = projects.find( i => i.name === fields.project );
-			debugger;
 			let postBody = {
 				fields: {
 					project: {
@@ -262,7 +289,15 @@
 				}
 			}
 			jira('POST', '/rest/api/2/issue', null, postBody, (data) => {
-				// debugger;
+				jira('GET', '/rest/api/2/issue/'+data.key, null, null, (issueData) => {
+					let issue = issueArrival(issueData);
+					if( issue.assignee === $('#filter-assignee').val() ) {
+						let renderedIssue = renderIssue(issue);
+						issueListForCol('New').prepend(renderedIssue);
+						shakePanel($(renderedIssue));
+						updateOrder('New');
+					}
+				});
 			});
 		}
 
@@ -391,6 +426,8 @@
 				epicKey: issue.fields.customfield_10009,
 				firaLabels,
 				nonFiraLabels,
+				created: Date.parse(issue.fields.created),
+				creator: issue.fields.creator.key,
 				jiraIssue: issue
 			};
 		}
@@ -415,6 +452,20 @@
 			});
 		}
 
+		function updateAllLabelsFromIssue(issue) {
+			issue.nonFiraLabels.forEach( (l) => {
+				allLabels.push(l);
+			});
+			allLabels = Array.from(new Set(allLabels)).sort();
+		}
+
+		function issueArrival(jiraIssue) {
+			let issue = jiraToFiraIssue(jiraIssue);
+			issuesByKey[issue.key] = issue;
+			updateAllLabelsFromIssue(issue);
+			return issue;
+		}
+
 		function jiraSearch(assignee, onDone) {
 			let body = {
 				jql: 'assignee="'+assignee+'" AND issuetype!=Epic AND (status not in (done) OR resolutiondate > -7d)',
@@ -432,30 +483,17 @@
 					'priority',
 					'resolutiondate',
 					'comment',
-					'customfield_10009'
+					'customfield_10009',
+					'created',
 				],
 				fieldsByKeys: false
 			}
+
+			issuesByKey = {};
+			allLabels = [];
 			jira('POST', '/rest/api/2/search', null, body, (data)=>{
-				// let issues = data.issues.filter(i => i.fields.issuetype.name !== 'Epic' && i.fields.issuetype.name !== 'Story');
-				let issues = data.issues;
-				let myIssues = issues.map( (i) => {
-					return jiraToFiraIssue(i);
-				});
-				issuesByKey = myIssues.reduce( (map, i) => {
-					map[i.key] = i;
-					return map;
-				}, {});
-
-				allLabels = {};
-				myIssues.forEach( (i) => {
-					i.nonFiraLabels.forEach( (l) => {
-						allLabels[l]= true;
-					});
-				});
-				allLabels = Object.keys(allLabels).sort();
-
-				onDone(myIssues);
+				let issues = data.issues.map(issueArrival);
+				onDone(issues);
 			});
 		}
 
@@ -468,7 +506,7 @@
 				'Planned Low': ['todo', 'promote', 'top', 'close'],
 				'Planned Med': ['todo', 'demote', 'promote', 'top', 'close'],
 				'Planned High': ['todo', 'demote', 'top', 'close'],
-				'Done': [],
+				'Done': ['todo'],
 			}
 
 			$('.issue-shortcut').addClass('hidden');
@@ -484,7 +522,15 @@
 			return $(".issue-list[data-col='"+col+"']");
 		}
 
+		function shakePanel($panel) {
+			$panel.effect('shake', {distance:15, times:2}, 500);
+		}
+
 		function renderIssue(issue) {
+			let colorClasses = '';
+			if( issue.nonFiraLabels.includes('production') ) {
+				colorClasses += '.issue-production';
+			}
 			let zz = z('li.panel.panel-default.issue-panel', {'data-key': issue.key},
 				z('div.panel-heading',
 					z('div.panel-title', issue.key,
@@ -498,7 +544,7 @@
 						)
 					)
 				),
-				z('div.panel-body', 
+				z('div.panel-body'+colorClasses, 
 					z('div.summary', issue.summary),
 					z('div.issue-labels',
 						issue.nonFiraLabels.map( (label) => {
@@ -512,22 +558,28 @@
 				let $panel = $(self).parents('.panel');
 
 				if( toCol === 'Done' ) {
-					$panel.effect('explode', {pieces:24}, 500);
+					$panel.effect('puff', {}, 500, function() {
+						$(this).show();
+						onAnimComplete();
+					});
+				}
+				else {
+					onAnimComplete();
 				}
 
-				let $issueList = issueListForCol(toCol);
-				$issueList.sortable('option', 'update')(
-					{
-						target: $issueList[0]
-					},
-					{
-						item: $panel.prependTo( $issueList ),
-						sender: true,
-						shortcut: true,
-					}
-				);
-				if( toCol !== 'Done' ) {
-					$panel.effect('shake', {distance:15, times:2}, 500);
+				function onAnimComplete() {
+					let $issueList = issueListForCol(toCol);
+					$issueList.sortable('option', 'update')(
+						{
+							target: $issueList[0]
+						},
+						{
+							item: $panel.prependTo( $issueList ),
+							sender: true,
+							shortcut: true,
+						}
+					);
+					shakePanel($panel);
 				}
 				setupShortcuts();
 			}
@@ -634,10 +686,17 @@
 					if( this === ui.item.parent()[0] || ui.shortcut ) {
 						let $panel = $(ui.item);
 
+						let $above = $panel.prev('.hidden-placeholder');
+						if( $above.length > 0 ) {
+							// Move up if there is a placeholder above.
+							$panel.insertBefore($above);
+						}
+
 						let key = $panel.data('key');
 						let toCol = $(event.target).data('col');
 						jiraTransition(key, toCol);
 						updateOrder(toCol);
+						setupShortcuts();
 					}
 				}
 			});
@@ -793,6 +852,7 @@
 		}
 
 		function issueDialogSetup(dialog) {
+
 			let key = $('.issue-form', dialog).data('key');
 			let issue = issuesByKey[key];
 
@@ -800,7 +860,7 @@
 				if(e.which == 13) {
 					let label = $(this).val();
 					$(this).val('');
-					issue.nonFiraLabels.push( label );
+					issue.nonFiraLabels = issue.nonFiraLabels.concat(label.split(' '))
 					setupLabels();
 					return false;
 				}
@@ -808,6 +868,7 @@
 
 			function setupLabels() {
 				issue.nonFiraLabels = Array.from(new Set(issue.nonFiraLabels)).sort();
+				updateAllLabelsFromIssue(issue);
 				let onLabels = issue.nonFiraLabels;
 				let offLabels = allLabels.filter( i => !onLabels.includes(i) ).sort();
 				$('input[name=nonFiraLabels]', dialog).val( onLabels );
@@ -874,10 +935,9 @@
 		}
 
 		$(document).ready(function() {
-			// jira('GET', '/rest/api/2/issue/SI-306', null, null, (data)=>{
+			// jira('GET', '/rest/api/2/issue/SI-332', null, null, (data)=>{
 			// 	debugger;
 			// });
-			// jiraSetOrder('MET-85', 1);
 
 			$(window).bind('beforeunload', function() {
 				if( pending ) {
@@ -906,8 +966,13 @@
 
 			$('#nav-section').html(topBar);
 
+			let showLabels = getCookie('showLabels') == 'true';
+			$('#show-labels').prop( 'checked', showLabels );
+
 			$('#show-labels').change( function() {
-				$('.issue-labels').toggle( $(this).is(":checked") );
+				let isChecked = $(this).is(":checked");
+				setCookie( 'showLabels', isChecked );
+				$('.issue-labels').toggle( isChecked );
 			});
 
 			$('#filter-assignee').html( listAsOptions(softwareGroup) );
@@ -940,7 +1005,6 @@
 					delete issuesByKey['new'];
 					setCookie( 'lastProject', fields.project );
 					jiraCreateIssue( fields );
-					reload();
 				});
 				return false;
 			});
@@ -955,12 +1019,12 @@
 
 			reload();
 			getAllProjects();
-			// jiraGetEpics();
 
 			$(document).on( 'click', '.panel-body', (e) => {
 				let key = $(e.target).parents('.panel').data('key');
 				let issue = issuesByKey[key];
-				createDialog( 'Edit Issue ' + key, createIssueForm(issue, false), issueDialogSetup, (fields) => {
+				let title = [z('span', 'Edit Issue ' + key), z('span.small', ' (Created ' + timeSince(issue.created) + ' ago by '+issue.creator+')')];
+				createDialog( title, createIssueForm(issue, false), issueDialogSetup, (fields) => {
 					fields.nonFiraLabels = fields.nonFiraLabels.split(',');
 					jiraUpdateIssue(key, fields);
 					if( fields.assignee !== issue.assignee || fields.new_comment !== '' ) {
@@ -981,11 +1045,5 @@
 	</div>
 	<div id="issues-section" class="container-fluid">
 	</div>
-	<!--
-	<h3>TODO</h3>
-	<ul>
-		<li>Refactor create</li>
-	</ul>
-	-->
 </body>
 </html>
