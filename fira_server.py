@@ -49,6 +49,9 @@ class Handler(SimpleHTTPRequestHandler):
 		self.end_headers()
 		self.wfile.write('')
 
+	def log_message(self, format, *args):
+		return
+
 	do_HEAD = do_GET
 	do_POST = do_GET
 	do_PUT = do_GET
