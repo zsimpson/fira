@@ -260,7 +260,7 @@
 				method: method,
 				contentType: 'application/json',
 				dataType: 'json',
-				url: 'http://localhost:8080' + path + (params ? '?' + $.param(params) : ''),
+				url: path + (params ? '?' + $.param(params) : ''),
 				data: body ? JSON.stringify(body) : null,
 				success: success,
 				error,
