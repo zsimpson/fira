@@ -61,8 +61,7 @@ class Handler(SimpleHTTPRequestHandler):
 class ThreadedHTTPServer(ThreadingMixIn, HTTPServer):
     """Handle requests in a separate thread."""
 
-
-port = 8080
+port = int(sys.argv[1]) if len(sys.argv) > 1 else 80
 print 'Server started port', port
 while True:
 	try:
