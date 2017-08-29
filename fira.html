@@ -111,6 +111,12 @@
 		}
 	</style>
 	<script>
+		let m = window.navigator.userAgent.match(/Chrome\/(\d\d)/);
+		if( !m || parseInt(m[1]) < 60 ) {
+			alert('You must use Chrome version 60 or higher (currently on '+m[1]+')');
+		}
+	</script>
+	<script>
 		// Inspired by hyperscript, with no dependencies and a bit simpler
 		function z() {
 			var a = arguments[0];
@@ -454,7 +460,7 @@
 
 		function updateAllLabelsFromIssue(issue) {
 			issue.nonFiraLabels.forEach( (l) => {
-				allLabels.push(l);
+				allLabels.push(l.toLowerCase());
 			});
 			allLabels = Array.from(new Set(allLabels)).sort();
 		}
@@ -723,7 +729,7 @@
 			let jiraCookie = getCookie('jiracookie');
 			let zz = z('div',
 				z('div.form-group',
-					z('label', {for:'jiracookie'}, 'JIRA cookies. (Paste from your JIRA tab, should start with _csrf=)'),
+					z('label', {for:'jiracookie'}, 'JIRA cookies. (Paste from your JIRA tab, should start with "cloud.session.token=")'),
 					z('textarea.form-control', {name:'jiracookie', rows:15})
 				)
 			);
@@ -858,7 +864,7 @@
 
 			$('.new-label').keypress( function(e) {
 				if(e.which == 13) {
-					let label = $(this).val();
+					let label = $(this).val().toLowerCase();
 					$(this).val('');
 					issue.nonFiraLabels = issue.nonFiraLabels.concat(label.split(' '))
 					setupLabels();
@@ -910,6 +916,18 @@
 			jiraSearch( assignee, (issues) => {
 				renderIssues(issues);
 			});
+
+			if( ! getCookie('filter-assignee' ) ) {
+				$('#nav-section').after(
+					z('div#alert-no-assignee.alert.alert-warning',
+						z('strong', 'Welcome! '),
+						"Don't see any issues below yet? You need to set your assignee filter above!"
+					)
+				);
+			}
+			else {
+				$('#alert-no-assignee').remove();
+			}
 		}
 
 		function getAllUsers() {
@@ -1015,10 +1033,15 @@
 					reload();
 				});
 				return false;
-			})
+			});
 
-			reload();
-			getAllProjects();
+			if( getCookie('jiracookie') ) {
+				reload();
+				getAllProjects();
+			}
+			else {
+				$('#btn-configure').trigger('click');
+			}
 
 			$(document).on( 'click', '.panel-body', (e) => {
 				let key = $(e.target).parents('.panel').data('key');
