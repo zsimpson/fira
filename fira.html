@@ -11,6 +11,8 @@
 	<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.2.1/jquery.min.js"></script>
 	<script src="https://ajax.googleapis.com/ajax/libs/jqueryui/1.12.1/jquery-ui.min.js"></script>
 	<script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/js/bootstrap.min.js" integrity="sha384-Tc5IQib027qvyjSMfHjOMaLkfuWVxZxUPnCJA7l2mCWNIpG9mGCD8wGNIcPD7Txa" crossorigin="anonymous"></script>
+	<script src="https://cdn.rawgit.com/harvesthq/chosen/gh-pages/chosen.jquery.min.js"></script>
+	<link href="https://cdn.rawgit.com/harvesthq/chosen/gh-pages/chosen.min.css" rel="stylesheet"/>
 	<style type="text/css">
 		body {
 			background-color: #d0cccc;
@@ -108,6 +110,9 @@
 		}
 		.loading {
 			color: gray;
+		}
+		#filter-label {
+			width: 200px;
 		}
 	</style>
 	<script>
@@ -968,8 +973,14 @@
 			let topBar = z('form.form-inline',
 				z('span.logo', 'F*IRA'),
 				z('div.form-group',
-					z('label', {for:'filter-assignee'}, 'Filter for assignee:'),
+					z('label', {for:'filter-assignee'}, 'Filter by assignee:'),
 					z('select.form-control#filter-assignee')
+				),
+				z('div.form-group',
+					z('label', {for:'filter-label'}, 'Filter by label:'),
+					z('select.form-control.chosen-select#filter-label', {multiple:'multiple', name:'filter-label'},
+						allLabels.map( l => z('option', {value:l}, l) )
+					)
 				),
 				z('div.btn-show-labels.checkbox',
 					z('label', z('input#show-labels', {type:'checkbox'}), ' Show labels')
@@ -986,12 +997,15 @@
 
 			let showLabels = getCookie('showLabels') == 'true';
 			$('#show-labels').prop( 'checked', showLabels );
-
 			$('#show-labels').change( function() {
 				let isChecked = $(this).is(":checked");
 				setCookie( 'showLabels', isChecked );
 				$('.issue-labels').toggle( isChecked );
 			});
+
+			$(".chosen-select").chosen({
+				no_results_text: "Oops, nothing found!"
+			})
 
 			$('#filter-assignee').html( listAsOptions(softwareGroup) );
 
