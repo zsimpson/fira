@@ -304,9 +304,10 @@
 					let issue = issueArrival(issueData);
 					if( issue.assignee === $('#filter-assignee').val() ) {
 						let renderedIssue = renderIssue(issue);
-						issueListForCol('New').prepend(renderedIssue);
+						issueListForCol('New').prepend(renderedIssue);						
 						shakePanel($(renderedIssue));
 						updateOrder('New');
+						setupShortcuts();
 					}
 				});
 			});
@@ -845,11 +846,19 @@
 
 			$(zz).modal();
 
-			$('form', zz).submit( () => {
+			$('form', zz).submit( (e) => {
 				let fields = {};
 				$('form :input', zz).each( function() {
 					fields[$(this).attr('name')] = $(this).val();
 				});
+				let enforce = ['project', 'summary', 'assignee'];
+				for( let i=0; i<enforce.length; i++ ) {
+					if( ! fields[enforce[i]] ) {
+						alert('You must specify ' + enforce[i]);
+						e.preventDefault();
+						return true;
+					}
+				}
 				onSave(fields);
 				$(zz).modal('hide');
 				return false;
