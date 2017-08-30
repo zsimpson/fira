@@ -109,6 +109,12 @@
 		.loading {
 			color: gray;
 		}
+		#filter-label {
+			width: 200px;
+		}
+		.form-inline > * {
+			margin: 0 0 0 1em;
+		}
 	</style>
 	<script>
 		let m = window.navigator.userAgent.match(/Chrome\/(\d\d)/);
@@ -299,9 +305,10 @@
 					let issue = issueArrival(issueData);
 					if( issue.assignee === $('#filter-assignee').val() ) {
 						let renderedIssue = renderIssue(issue);
-						issueListForCol('New').prepend(renderedIssue);
+						issueListForCol('New').prepend(renderedIssue);						
 						shakePanel($(renderedIssue));
 						updateOrder('New');
+						setupShortcuts();
 					}
 				});
 			});
@@ -840,11 +847,19 @@
 
 			$(zz).modal();
 
-			$('form', zz).submit( () => {
+			$('form', zz).submit( (e) => {
 				let fields = {};
 				$('form :input', zz).each( function() {
 					fields[$(this).attr('name')] = $(this).val();
 				});
+				let enforce = ['project', 'summary', 'assignee'];
+				for( let i=0; i<enforce.length; i++ ) {
+					if( ! fields[enforce[i]] ) {
+						alert('You must specify ' + enforce[i]);
+						e.preventDefault();
+						return true;
+					}
+				}
 				onSave(fields);
 				$(zz).modal('hide');
 				return false;
@@ -906,6 +921,11 @@
 			setupLabels();
 		}
 
+		function updateFilterByLabel() {
+			$('#filter-label').html( listAsOptions(allLabels.concat(['Show all'])) );
+			$('#filter-label').val( getCookie('filter-label') );
+		}
+
 		function reload() {
 			let assignee = $('#filter-assignee').val()
 			let waiting = z('h3.text-center.loading',
@@ -915,6 +935,7 @@
 			$('#issues-section').html(waiting);
 			jiraSearch( assignee, (issues) => {
 				renderIssues(issues);
+				updateFilterByLabel();
 			});
 
 			if( ! getCookie('filter-assignee' ) ) {
@@ -968,8 +989,12 @@
 			let topBar = z('form.form-inline',
 				z('span.logo', 'F*IRA'),
 				z('div.form-group',
-					z('label', {for:'filter-assignee'}, 'Filter for assignee:'),
+					z('label', {for:'filter-assignee'}, 'Filter by assignee:'),
 					z('select.form-control#filter-assignee')
+				),
+				z('div.form-group',
+					z('label', {for:'filter-label'}, 'Filter by label:'),
+					z('select.form-control#filter-label')
 				),
 				z('div.btn-show-labels.checkbox',
 					z('label', z('input#show-labels', {type:'checkbox'}), ' Show labels')
@@ -986,7 +1011,6 @@
 
 			let showLabels = getCookie('showLabels') == 'true';
 			$('#show-labels').prop( 'checked', showLabels );
-
 			$('#show-labels').change( function() {
 				let isChecked = $(this).is(":checked");
 				setCookie( 'showLabels', isChecked );
@@ -994,12 +1018,24 @@
 			});
 
 			$('#filter-assignee').html( listAsOptions(softwareGroup) );
-
 			$('#filter-assignee').val( getCookie('filter-assignee') );
-
 			$('#filter-assignee').change( function() {
 				setCookie('filter-assignee', $(this).val() );
 				reload();
+			});
+
+			$('#filter-label').change( function() {
+				let label = $(this).val();
+				setCookie('filter-label', label );
+				$('.panel').each( function() {
+					let issue = issuesByKey[$(this).data('key')];
+					if( label == 'Show all' || issue.nonFiraLabels.includes(label) ) {
+						$(this).removeClass('hidden');
+					}
+					else {
+						$(this).addClass('hidden');
+					}
+				});
 			});
 
 			$('#btn-refresh').click( (e) => {
