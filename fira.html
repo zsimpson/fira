@@ -855,15 +855,10 @@
 				$('form :input', zz).each( function() {
 					fields[$(this).attr('name')] = $(this).val();
 				});
-				let enforce = ['project', 'summary', 'assignee'];
-				for( let i=0; i<enforce.length; i++ ) {
-					if( ! fields[enforce[i]] ) {
-						alert('You must specify ' + enforce[i]);
-						e.preventDefault();
-						return true;
-					}
+				if( ! onSave(fields) ) {
+					e.preventDefault();
+					return true;
 				}
-				onSave(fields);
 				$(zz).modal('hide');
 				return false;
 			});
@@ -1058,10 +1053,18 @@
 				}
 				issuesByKey[newIssue.key] = newIssue;
 				createDialog( 'New Issue', createIssueForm(newIssue, true), issueDialogSetup, (fields) => {
+					let enforce = ['project', 'summary', 'assignee'];
+					for( let i=0; i<enforce.length; i++ ) {
+						if( ! fields[enforce[i]] ) {
+							alert('You must specify ' + enforce[i]);
+							return false;
+						}
+					}
 					fields.nonFiraLabels = fields.nonFiraLabels.split(',');
 					delete issuesByKey['new'];
 					setCookie( 'lastProject', fields.project );
 					jiraCreateIssue( fields );
+					return true;
 				});
 				return false;
 			});
@@ -1070,6 +1073,7 @@
 				createDialog( 'Configure', createConfigureForm(), null, (fields) => {
 					setCookie('jiracookie', fields.jiracookie);
 					reload();
+					return true;
 				});
 				return false;
 			});
@@ -1101,6 +1105,7 @@
 						issuesByKey[key] = issue;
 						$('.panel[data-key='+key+']').replaceWith( renderIssue(issue) );
 					}
+					return true;
 				});
 			});
 		});
