@@ -115,6 +115,9 @@
 		.form-inline > * {
 			margin: 0 0 0 1em;
 		}
+		.right-pad {
+			padding-right: 1em;
+		}
 	</style>
 	<script>
 		let m = window.navigator.userAgent.match(/Chrome\/(\d\d)/);
@@ -1082,7 +1085,11 @@
 			$(document).on( 'click', '.panel-body', (e) => {
 				let key = $(e.target).parents('.panel').data('key');
 				let issue = issuesByKey[key];
-				let title = [z('span', 'Edit Issue ' + key), z('span.small', ' (Created ' + timeSince(issue.created) + ' ago by '+issue.creator+')')];
+				let title = [
+					z('span', 'Edit Issue ' + key),
+					z('span.small', ' (Created ' + timeSince(issue.created) + ' ago by '+issue.creator+')'),
+					z('a.pull-right.right-pad', 'View issue in JIRA', {href: 'https://mousera.atlassian.net/browse/'+key, target:'_blank'}),
+				];
 				createDialog( title, createIssueForm(issue, false), issueDialogSetup, (fields) => {
 					fields.nonFiraLabels = fields.nonFiraLabels.split(',');
 					jiraUpdateIssue(key, fields);
