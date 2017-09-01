@@ -99,9 +99,6 @@
 			margin-right: 0.2em;
 			cursor: pointer;
 		}
-		.new-label {
-			margin-top: 1em;
-		}
 		.loading {
 			color: gray;
 		}
@@ -111,8 +108,17 @@
 		.form-inline > * {
 			margin: 0 0.5em 0 0;
 		}
+		.left-pad {
+			padding-left: 1em;
+		}
 		.right-pad {
 			padding-right: 1em;
+		}
+		.labels-on {
+			margin-bottom: 1em;
+		}
+		.modal-content {
+			background-color: #f7f7f7;
 		}
 	</style>
 	<script>
@@ -250,6 +256,17 @@
 			'Planned High': 'High',
 		}
 
+		let firaCols = [
+			'New',
+			'To Do',
+			'In Progress',
+			'In Review',
+			'Planned Low',
+			'Planned Med',
+			'Planned High',
+			'Done',
+		]
+
 		let pending = 0;
 		function updatePending(p) {
 			pending = p;
@@ -358,6 +375,11 @@
 						}
 					}
 					jira('POST', '/rest/api/2/issue/'+key+'/transitions', null, transition);
+				}
+				else {
+					alert('The project does not allow that transition.\nThe issue will be put back where it was.');
+					reload();
+					return;
 				}
 				let actions = [];
 				if( toPlanned ) {
@@ -511,24 +533,9 @@
 		}
 
 		function setupShortcuts() {
-			let shortcuts = {
-				'New': ['plan', 'promote', 'top', 'close'],
-				'To Do': ['demote', 'promote', 'top', 'close'],
-				'In Progress': ['demote', 'promote', 'top', 'close'],
-				'In Review': ['demote', 'top', 'close'],
-				'Planned Low': ['todo', 'promote', 'top', 'close'],
-				'Planned Med': ['todo', 'demote', 'promote', 'top', 'close'],
-				'Planned High': ['todo', 'demote', 'top', 'close'],
-				'Done': ['todo'],
-			}
-
-			$('.issue-shortcut').addClass('hidden');
-			Object.keys(shortcuts).forEach( (col) => {
-				let $issueListForCol = issueListForCol(col);
-				shortcuts[col].forEach( (action) => {
-					$('.'+action+'-issue', $issueListForCol).removeClass('hidden');
-				});
-			});
+			let $issueListForDoneCol = issueListForCol('Done');
+			$('.issue-shortcut[data-shortcut="Done"]', $issueListForDoneCol).addClass('hidden');
+			$('.issue-shortcut[data-shortcut="Top"]', $issueListForDoneCol).addClass('hidden');
 		}
 
 		function issueListForCol(col) {
@@ -548,12 +555,18 @@
 				z('div.panel-heading',
 					z('div.panel-title', issue.key,
 						z('div.pull-right.issue-shortcuts',
-							z('span.glyphicon.glyphicon-arrow-up.todo-issue.issue-shortcut', {'aria-hidden':true}),
-							z('span.glyphicon.glyphicon-arrow-down.plan-issue.issue-shortcut', {'aria-hidden':true}),
-							z('span.glyphicon.glyphicon-arrow-left.demote-issue.issue-shortcut', {'aria-hidden':true}),
-							z('span.glyphicon.glyphicon-arrow-right.promote-issue.issue-shortcut', {'aria-hidden':true}),
-							z('span.glyphicon.glyphicon-chevron-up.top-issue.issue-shortcut', {'aria-hidden':true}),
-							z('span.glyphicon.glyphicon-ok.close-issue.issue-shortcut', {'aria-hidden':true}),
+							z('span.dropdown',
+								z('span.glyphicon.glyphicon-pushpin.dropdown-toggle', {type:'button', 'data-toggle':'dropdown'}),
+								z('ul.dropdown-menu.dropdown-menu-right', {role:'menu'},
+									z('li', {role:'presentation'},
+										firaCols.map( (col) => {
+											return z('a.issue-shortcut', {role: 'menuitem', tabindex:'-1'}, col);
+										})
+									)
+								)
+							),
+							z('span.glyphicon.glyphicon-chevron-up.issue-shortcut', {'aria-hidden':true, 'data-shortcut': 'Top'}),
+							z('span.glyphicon.glyphicon-ok.issue-shortcut', {'aria-hidden':true, 'data-shortcut': 'Done'}),
 						)
 					)
 				),
@@ -599,45 +612,18 @@
 
 			$('.issue-labels', zz).toggle( $('#show-labels').is(":checked") );
 
-			$('.top-issue', zz).click( function() {
-				let thisCol = $(this).parents('.issue-list').data('col');
-				movePanel( this, thisCol );
-			});
-
-			$('.close-issue', zz).click( function() {
-				movePanel( this, 'Done' );
-			});
-
-			$('.todo-issue', zz).click( function() {
-				movePanel( this, 'To Do' );
-			});
-
-			$('.plan-issue', zz).click( function() {
-				movePanel( this, 'Planned High' );
-			});
-
-			$('.demote-issue', zz).click( function() {
-				let thisCol = $(this).parents('.issue-list').data('col');
-				let thisColToNewCol = {
-					'In Review': 'In Progress',
-					'In Progress': 'To Do',
-					'To Do': 'New',
-					'Planned High': 'Planned Med',
-					'Planned Med': 'Planned Low',
+			$('.issue-shortcut', zz).click( function() {
+				let where = $(this).text();
+				if( $(this).data('shortcut') ) {
+					where = $(this).data('shortcut');
 				}
-				movePanel( this, thisColToNewCol[thisCol] );
-			});
-
-			$('.promote-issue', zz).click( function() {
-				let thisCol = $(this).parents('.issue-list').data('col');
-				let thisColToNewCol = {
-					'New': 'To Do',
-					'To Do': 'In Progress',
-					'In Progress': 'In Review',
-					'Planned Low': 'Planned Med',
-					'Planned Med': 'Planned High',
+				if( where == 'Top' ) {
+					let thisCol = $(this).parents('.issue-list').data('col');
+					movePanel( this, thisCol );
 				}
-				movePanel( this, thisColToNewCol[thisCol] );
+				else {
+					movePanel( this, where );
+				}
 			});
 
 			return zz;
@@ -766,7 +752,12 @@
 							z('input.hidden', {name: 'nonFiraLabels'}),
 							z('label', 'Labels on this issue'),
 							z('div.labels-on'),
-							z('input.form-control.new-label', {name:'new_label', placeholder:'New label'})
+							z('div.input-group',
+								z('input.form-control.new-label', {type:'text', name:'new_label', placeholder:'New label'}),
+								z('span.input-group-btn',
+									z('button.btn.btn-primary.btn-add-label.disabled', {type:'button'}, 'Add')
+								)
+							)
 						),
 						z('div.form-group.form-group.col-sm-8',
 							z('label', 'Labels not on this issue'),
@@ -795,7 +786,7 @@
 
 			if( ! isNew ) {
 				let comments = z('div.panel.panel-default',
-					z('div.panel-heading', 'Comments'),
+					z('div.panel-heading', z('strong', 'Comments')),
 					z('ul.list-group',
 						issue.comments.map( (c) => {
 							return z('li.list-group-item', 
@@ -822,14 +813,12 @@
 				z('div.modal-dialog.modal-lg',
 					z('div.modal-content',
 						z('div.modal-header',
-							z('button.close', {'data-dismiss':'modal'}, 'x'),
 							z('h4.modal-title', title)
 						),
 						z('form', {role:'form', id:dialogFormId},
 							z('div.modal-body',
 								formBody
 							),
-							// z('button.btn.btn-primary', {type:'submit', value:'submit'}, 'Save test')
 						),
 						z('div.modal-footer',
 							z('button.btn.btn-default', {'data-dismiss':'modal'}, 'Cancel'),
@@ -868,16 +857,66 @@
 		}
 
 		function issueDialogSetup(dialog) {
-
 			let key = $('.issue-form', dialog).data('key');
 			let issue = issuesByKey[key];
 
+			$(dialog).on('shown.bs.modal', () => {
+				$('input[name=summary]', dialog).focus();
+			});
+
+			if( key !== 'new' ) {
+				$('button[type=submit]', dialog).replaceWith(
+					z('div.btn-group.dropup.left-pad',
+						z('button.btn.btn-primary.save', {type:'button'}, 'Save'),
+						z('button.btn.btn-primary.dropdown-toggle', {'data-toggle':'dropdown', 'aria-haspopup':'true', 'aria-expanded':'false'},
+							z('span.caret'),
+							z('span.sr-only'),
+						),
+						z('ul.dropdown-menu',
+							firaCols.map( (col) => {
+								return z( 'li', z('a.save', col) );
+							})
+						)
+					)
+				);
+				$('.save', dialog).click( function() {
+					let toCol = $(this).text();
+					let $issueList = issueListForCol(toCol);
+					let $panel = $('.issue-panel[data-key='+key+']');
+					$issueList.sortable('option', 'update')(
+						{
+							target: $issueList[0]
+						},
+						{
+							item: $panel.prependTo( $issueList ),
+							sender: true,
+							shortcut: true,
+						}
+					);
+					$('form', dialog).submit();
+				});
+			}
+
+			function addLabelFromText() {
+				let $input = $('.new-label', dialog);
+				let label = $input.val().toLowerCase();
+				$input.val('');
+				issue.nonFiraLabels = issue.nonFiraLabels.concat(label.split(' '))
+				setupLabels();
+			}
+
+			$('.btn-add-label', dialog).click( function() {
+				addLabelFromText();
+			});
+
+			$('.new-label').on( 'keyup paste', function(e) {
+				let hasContent = $(this).val() != '';
+				$('.btn-add-label', dialog).toggleClass('disabled', !hasContent);
+			});
+
 			$('.new-label').keypress( function(e) {
 				if(e.which == 13) {
-					let label = $(this).val().toLowerCase();
-					$(this).val('');
-					issue.nonFiraLabels = issue.nonFiraLabels.concat(label.split(' '))
-					setupLabels();
+					addLabelFromText();
 					return false;
 				}
 			});
