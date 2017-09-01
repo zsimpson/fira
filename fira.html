@@ -881,18 +881,20 @@
 				);
 				$('.save', dialog).click( function() {
 					let toCol = $(this).text();
-					let $issueList = issueListForCol(toCol);
-					let $panel = $('.issue-panel[data-key='+key+']');
-					$issueList.sortable('option', 'update')(
-						{
-							target: $issueList[0]
-						},
-						{
-							item: $panel.prependTo( $issueList ),
-							sender: true,
-							shortcut: true,
-						}
-					);
+					if( toCol !== 'Save' ) {
+						let $issueList = issueListForCol(toCol);
+						let $panel = $('.issue-panel[data-key='+key+']');
+						$issueList.sortable('option', 'update')(
+							{
+								target: $issueList[0]
+							},
+							{
+								item: $panel.prependTo( $issueList ),
+								sender: true,
+								shortcut: true,
+							}
+						);
+					}
 					$('form', dialog).submit();
 				});
 			}
