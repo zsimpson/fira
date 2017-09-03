@@ -47,16 +47,12 @@ class Handler(SimpleHTTPRequestHandler):
 				if header_signature is None:
 					print 'here3'
 					self.abort(403)
-
-				print 'here4'
-				sha_name, signature = header_signature.split('=')
-				if sha_name != 'sha1':
-					print 'here5'
-					self.abort(501)
+					return
 
 				# HMAC requires the key to be bytes, but data is string
 				print 'here6'
 				signature = 'sha1=' + hmac.new(secret, orig_body, hashlib.sha1).hexdigest()
+				print 'here6.1', signature, header_signature
 				if signature == header_signature:
 					print 'GOOD!'
 
@@ -66,13 +62,16 @@ class Handler(SimpleHTTPRequestHandler):
 				if event == 'ping':
 					print 'here13'
 					self.send_reply(200, 'application/json', json.dumps({'msg': 'pong'}))
+					return
 
 				else:
 					print 'event', event					
 					self.send_reply(200, 'application/json', '')
+					return
 			else:
 				print 'here14'
 				self.abort(501)
+				return
 
 		else:
 			body = ''
