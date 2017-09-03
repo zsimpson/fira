@@ -118,7 +118,7 @@ while True:
 		httpd = ThreadedHTTPServer(('0.0.0.0', port), Handler)
 		httpd.serve_forever()
 	except KeyboardInterrupt:
-		print 'keyboard interrupt'
+		os.killpg(os.getpgrp())
 		break
 	except:
 		pass
