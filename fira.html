@@ -217,18 +217,7 @@
 		let epicsByKey = {};
 		let allLabels = [];
 
-		let softwareGroup = [
-			'zack',
-			'youssef',
-			'willy',
-			'pablo',
-			'mike mccabe',
-			'kyle heath',
-			'guy',
-			'davidrideout',
-			'daniel ford',
-			'joe betts-lacroix',
-		];
+		let users = [];
 
 		let jiraStatusToFiraCol = {
 			'New': 'New',
@@ -743,7 +732,7 @@
 				z('div.form-group',
 					z('label', {for:'assignee'}, 'Assignee'),
 					z('select.form-control', {name:'assignee'},
-						listAsOptions(softwareGroup)
+						listAsOptions(users)
 					)
 				),
 				z('div.container-fluid',
@@ -977,7 +966,7 @@
 		}
 
 		function reload() {
-			let assignee = $('#filter-assignee').val()
+			let assignee = $('#filter-assignee').val();
 			let waiting = z('h3.text-center.loading',
 				z('span.glyphicon.glyphicon-refresh.spinning'),
 				z('span', ' Loading...')
@@ -1025,7 +1014,7 @@
 		}
 
 		$(document).ready(function() {
-			// jira('GET', '/rest/api/2/issue/SI-332', null, null, (data)=>{
+			// jira('GET', '/rest/api/2/group/member', {groupname:'fira', maxResults:1000}, null, (data)=>{
 			// 	debugger;
 			// });
 
@@ -1068,8 +1057,14 @@
 				$('.issue-labels').toggle( isChecked );
 			});
 
-			$('#filter-assignee').html( listAsOptions(softwareGroup) );
-			$('#filter-assignee').val( getCookie('filter-assignee') );
+
+			jira('GET', '/rest/api/2/group/member', {groupname:'fira', maxResults:1000}, null, (data)=>{
+				users = data.values.map( i => i.key );
+				$('#filter-assignee').html( listAsOptions(users) );
+				$('#filter-assignee').val( getCookie('filter-assignee') );
+				reload();
+			});
+
 			$('#filter-assignee').change( function() {
 				setCookie('filter-assignee', $(this).val() );
 				reload();
@@ -1120,7 +1115,7 @@
 			});
 
 			if( getCookie('jiracookie') ) {
-				reload();
+				// reload();
 				getAllProjects();
 			}
 			else {
