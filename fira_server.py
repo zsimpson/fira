@@ -59,7 +59,7 @@ class Handler(SimpleHTTPRequestHandler):
 				if signature == header_signature:
 					print 'GOOD!'
 
-				h = hmac.new(os.environ('GITHUB_SECRET'), orig_body, hashlib.sha1)
+				h = hmac.new(os.environ.get('GITHUB_SECRET'), orig_body, hashlib.sha1)
 				print 'using compare digest', hmac.compare_digest(bytes("sha1=" + h.hexdigest()), bytes(header_signature))
 
 				# Implement ping
