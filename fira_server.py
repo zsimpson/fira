@@ -38,8 +38,8 @@ class Handler(SimpleHTTPRequestHandler):
 
 		elif self.path == '/github':
 			if 'content-length' in self.headers:
-				body = self.rfile.read(int(self.headers['content-length']))
-				body = json.loads(body)
+				orig_body = self.rfile.read(int(self.headers['content-length']))
+				body = json.loads(orig_body)
 
 				header_signature = self.headers.get('X-Hub-Signature')
 				if header_signature is None:
@@ -50,7 +50,7 @@ class Handler(SimpleHTTPRequestHandler):
 					self.abort(501)
 
 				# HMAC requires the key to be bytes, but data is string
-				mac = hmac.new(str(secret), msg=request.data, digestmod='sha1')
+				mac = hmac.new(str(secret), msg=orig_body, digestmod='sha1')
 
 				# Python prior to 2.7.7 does not have hmac.compare_digest
 				if sys.hexversion >= 0x020707F0:
@@ -118,7 +118,7 @@ while True:
 		httpd = ThreadedHTTPServer(('0.0.0.0', port), Handler)
 		httpd.serve_forever()
 	except KeyboardInterrupt:
-		os.killpg(os.getpgrp())
+		os.killpg(os.getpgrp(), 9)
 		break
 	except:
 		pass
