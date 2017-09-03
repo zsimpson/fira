@@ -7,6 +7,7 @@ import json
 import hashlib
 import hmac
 import os
+import base64
 from SimpleHTTPServer import SimpleHTTPRequestHandler
 from BaseHTTPServer import HTTPServer, BaseHTTPRequestHandler
 from SocketServer import ThreadingMixIn
@@ -55,12 +56,16 @@ class Handler(SimpleHTTPRequestHandler):
 				# HMAC requires the key to be bytes, but data is string
 				print 'here6', type(bytes(secret)), type(bytes(orig_body))
 				signature = 'sha1=' + hmac.new(bytes(secret), bytes(orig_body), hashlib.sha1).hexdigest()
+
 				print 'here6.1', signature, header_signature
 				if signature == header_signature:
 					print 'GOOD!'
 
-				h = hmac.new(os.environ.get('GITHUB_SECRET'), orig_body, hashlib.sha1)
-				print 'using compare digest', hmac.compare_digest(bytes("sha1=" + h.hexdigest()), bytes(header_signature))
+				hm = hmac.new(bytes(secret), bytes(orig_body), hashlib.sha1)
+				print 'by base64', base64.b64encode(hm.digest())
+
+				# h = hmac.new(os.environ.get('GITHUB_SECRET'), orig_body, hashlib.sha1)
+				# print 'using compare digest', hmac.compare_digest(bytes("sha1=" + h.hexdigest()), bytes(header_signature))
 
 				# Implement ping
 				print 'here12'
