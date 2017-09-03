@@ -32,7 +32,7 @@ class Handler(SimpleHTTPRequestHandler):
 				body = json.loads(body)
 				print 'got it'
 				with open('last.json', 'w') as f:
-					f.write(json.dumps(self.headers, indent=4))
+					f.write(str(self.headers))
 					f.write('\n\n\n')
 					f.write(json.dumps(body, indent=4))
 
