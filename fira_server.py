@@ -54,7 +54,7 @@ class Handler(SimpleHTTPRequestHandler):
 
 				# HMAC requires the key to be bytes, but data is string
 				print 'here6', type(bytes(secret)), type(bytes(orig_body))
-				signature = 'sha1=' + hmac.new(secret, orig_body, hashlib.sha1).hexdigest()
+				signature = 'sha1=' + hmac.new(bytes(secret), bytes(orig_body), hashlib.sha1).hexdigest()
 				print 'here6.1', signature, header_signature
 				if signature == header_signature:
 					print 'GOOD!'
