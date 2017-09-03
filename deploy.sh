@@ -1,5 +1,9 @@
 #!/usr/bin/env bash
 
+git add .
+git commit -m "deploy"
+git push origin master
+
 SSH="ssh -i ~/vium/keys/prod_ecs_host.pem ubuntu@10.204.1.139" 
 
 PID=$($SSH ps ax | grep 'nohup ./fira_server.py' | awk '{print $1}')

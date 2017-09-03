@@ -58,13 +58,13 @@ class Handler(SimpleHTTPRequestHandler):
 				print 'here6'
 				mac = hmac.new(str(secret), msg=orig_body, digestmod='sha1')
 
-				signature = 'sha1=' + hmac.new(GITHUB_SECRET, orig_body, hashlib.sha1).hexdigest()
+				signature = 'sha1=' + hmac.new(secret, orig_body, hashlib.sha1).hexdigest()
 				if signature == header_signature:
 					print 'GOOD!'
 
 				# Implement ping
 				print 'here12'
-				event = request.headers.get('X-GitHub-Event', 'ping')
+				event = self.headers.get('X-GitHub-Event', 'ping')
 				if event == 'ping':
 					print 'here13'
 					self.send_reply(200, 'application/json', json.dumps({'msg': 'pong'}))
