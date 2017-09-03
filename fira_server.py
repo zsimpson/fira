@@ -11,6 +11,7 @@ import base64
 from SimpleHTTPServer import SimpleHTTPRequestHandler
 from BaseHTTPServer import HTTPServer, BaseHTTPRequestHandler
 from SocketServer import ThreadingMixIn
+import chardet
 
 secret = os.environ['GITHUB_SECRET']
 if secret is None:
@@ -38,7 +39,6 @@ class Handler(SimpleHTTPRequestHandler):
 				self.send_reply(200, 'text/html', f.read())
 
 		elif self.path == '/github':
-			'''
 			print 'here1'
 			if 'content-length' in self.headers:
 				orig_body = self.rfile.read(int(self.headers['content-length']))
@@ -55,6 +55,11 @@ class Handler(SimpleHTTPRequestHandler):
 					return
 
 				# HMAC requires the key to be bytes, but data is string
+				orig_encoding = chardet.detect(orig_body)['encoding']
+				secret_encoding = chardet.detect(secret)['encoding']
+				print 'orig_encoding', orig_encoding
+				print 'secret_encoding', secret_encoding
+
 				print 'here6', type(bytes(secret)), type(bytes(orig_body))
 				signature = 'sha1=' + hmac.new(bytes(secret), bytes(orig_body), hashlib.sha1).hexdigest()
 
@@ -84,7 +89,7 @@ class Handler(SimpleHTTPRequestHandler):
 				print 'here14'
 				self.abort(501)
 				return
-			'''
+
 			pass
 
 		else:
