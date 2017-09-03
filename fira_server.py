@@ -40,6 +40,9 @@ class Handler(SimpleHTTPRequestHandler):
 			print 'here1'
 			if 'content-length' in self.headers:
 				orig_body = self.rfile.read(int(self.headers['content-length']))
+				print 'orig_body start'
+				print orig_body
+				print 'orig_body end'
 				body = json.loads(orig_body)
 
 				header_signature = self.headers.get('X-Hub-Signature')
