@@ -25,7 +25,7 @@ class Handler(SimpleHTTPRequestHandler):
 			with open('fira.html') as f:
 				self.send_reply(200, 'text/html', f.read())
 
-		elif self.path == 'github':
+		elif self.path == '/github':
 			body = ''
 			if 'content-length' in self.headers:
 				body = self.rfile.read(int(self.headers['content-length']))
