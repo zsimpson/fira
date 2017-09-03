@@ -37,41 +37,55 @@ class Handler(SimpleHTTPRequestHandler):
 				self.send_reply(200, 'text/html', f.read())
 
 		elif self.path == '/github':
+			print 'here1'
 			if 'content-length' in self.headers:
 				orig_body = self.rfile.read(int(self.headers['content-length']))
 				body = json.loads(orig_body)
 
 				header_signature = self.headers.get('X-Hub-Signature')
+				print 'here2'
 				if header_signature is None:
+					print 'here3'
 					self.abort(403)
 
+				print 'here4'
 				sha_name, signature = header_signature.split('=')
 				if sha_name != 'sha1':
+					print 'here5'
 					self.abort(501)
 
 				# HMAC requires the key to be bytes, but data is string
+				print 'here6'
 				mac = hmac.new(str(secret), msg=orig_body, digestmod='sha1')
 
 				# Python prior to 2.7.7 does not have hmac.compare_digest
+				print 'here7'
 				if sys.hexversion >= 0x020707F0:
+					print 'here8'
 					if not hmac.compare_digest(str(mac.hexdigest()), str(signature)):
+						print 'here9'
 						self.abort(403)
 				else:
 					# What compare_digest provides is protection against timing
 					# attacks; we can live without this protection for a web-based
 					# application
+					print 'here10'
 					if not str(mac.hexdigest()) == str(signature):
+						print 'here11'
 						self.abort(403)
 
 				# Implement ping
+				print 'here12'
 				event = request.headers.get('X-GitHub-Event', 'ping')
 				if event == 'ping':
+					print 'here13'
 					self.send_reply(200, 'application/json', json.dumps({'msg': 'pong'}))
 
 				else:
 					print 'event', event					
 					self.send_reply(204)
 			else:
+				print 'here14'
 				self.abort(501)
 
 		else:
