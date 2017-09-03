@@ -4,9 +4,17 @@ import sys
 import urllib
 import threading
 import json
+import hashlib
+import hmac
+import os
 from SimpleHTTPServer import SimpleHTTPRequestHandler
 from BaseHTTPServer import HTTPServer, BaseHTTPRequestHandler
 from SocketServer import ThreadingMixIn
+
+secret = os.environ['GITHUB_SECRET']
+if secret is None:
+	print 'Error: no GITHUB_SECRET declared in environ'
+	sys.exit(1)
 
 class Handler(SimpleHTTPRequestHandler):
 	protocol_version = 'HTTP/1.0'
@@ -20,22 +28,51 @@ class Handler(SimpleHTTPRequestHandler):
 		self.end_headers()
 		self.wfile.write(body)
 
+	def abort(self, status):
+		self.send_reply(403, 'application/json', '')
+
 	def do_GET(self):
 		if self.path == '/':
 			with open('fira.html') as f:
 				self.send_reply(200, 'text/html', f.read())
 
 		elif self.path == '/github':
-			body = ''
 			if 'content-length' in self.headers:
 				body = self.rfile.read(int(self.headers['content-length']))
 				body = json.loads(body)
-				print 'got it'
-				with open('last.json', 'w') as f:
-					f.write(str(self.headers))
-					f.write('\n\n\n')
-					f.write(json.dumps(body, indent=4))
-			self.send_reply(204)
+
+				header_signature = self.headers.get('X-Hub-Signature')
+				if header_signature is None:
+					self.abort(403)
+
+				sha_name, signature = header_signature.split('=')
+				if sha_name != 'sha1':
+					self.abort(501)
+
+				# HMAC requires the key to be bytes, but data is string
+				mac = hmac.new(str(secret), msg=request.data, digestmod='sha1')
+
+				# Python prior to 2.7.7 does not have hmac.compare_digest
+				if sys.hexversion >= 0x020707F0:
+					if not hmac.compare_digest(str(mac.hexdigest()), str(signature)):
+						self.abort(403)
+				else:
+					# What compare_digest provides is protection against timing
+					# attacks; we can live without this protection for a web-based
+					# application
+					if not str(mac.hexdigest()) == str(signature):
+						self.abort(403)
+
+				# Implement ping
+				event = request.headers.get('X-GitHub-Event', 'ping')
+				if event == 'ping':
+					self.send_reply(200, 'application/json', json.dumps({'msg': 'pong'}))
+
+				else:
+					print 'event', event					
+					self.send_reply(204)
+			else:
+				self.abort(501)
 
 		else:
 			body = ''
