@@ -69,7 +69,7 @@ class Handler(SimpleHTTPRequestHandler):
 
 				else:
 					print 'event', event					
-					self.send_reply(204)
+					self.send_reply(200, 'application/json', '')
 			else:
 				print 'here14'
 				self.abort(501)
