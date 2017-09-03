@@ -3,6 +3,7 @@ import httplib
 import sys
 import urllib
 import threading
+import json
 from SimpleHTTPServer import SimpleHTTPRequestHandler
 from BaseHTTPServer import HTTPServer, BaseHTTPRequestHandler
 from SocketServer import ThreadingMixIn
@@ -23,6 +24,12 @@ class Handler(SimpleHTTPRequestHandler):
 		if self.path == '/':
 			with open('fira.html') as f:
 				self.send_reply(200, 'text/html', f.read())
+
+		elif self.path == 'github':
+			body = ''
+			if 'content-length' in self.headers:
+				body = self.rfile.read(int(self.headers['content-length']))
+				print json.dumps(body, indent=4)
 
 		else:
 			body = ''
@@ -68,6 +75,7 @@ while True:
 		httpd = ThreadedHTTPServer(('0.0.0.0', port), Handler)
 		httpd.serve_forever()
 	except KeyboardInterrupt:
+		print 'keyboard interrupt'
 		break
 	except:
 		pass
