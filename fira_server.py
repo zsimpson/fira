@@ -58,21 +58,9 @@ class Handler(SimpleHTTPRequestHandler):
 				print 'here6'
 				mac = hmac.new(str(secret), msg=orig_body, digestmod='sha1')
 
-				# Python prior to 2.7.7 does not have hmac.compare_digest
-				print 'here7'
-				if sys.hexversion >= 0x020707F0:
-					print 'here8'
-					if not hmac.compare_digest(str(mac.hexdigest()), str(signature)):
-						print 'here9'
-						self.abort(403)
-				else:
-					# What compare_digest provides is protection against timing
-					# attacks; we can live without this protection for a web-based
-					# application
-					print 'here10'
-					if not str(mac.hexdigest()) == str(signature):
-						print 'here11'
-						self.abort(403)
+				signature = 'sha1=' + hmac.new(GITHUB_SECRET, orig_body, hashlib.sha1).hexdigest()
+				if signature == header_signature:
+					print 'GOOD!'
 
 				# Implement ping
 				print 'here12'
