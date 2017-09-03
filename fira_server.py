@@ -11,7 +11,7 @@ import base64
 from SimpleHTTPServer import SimpleHTTPRequestHandler
 from BaseHTTPServer import HTTPServer, BaseHTTPRequestHandler
 from SocketServer import ThreadingMixIn
-import chardet
+# import chardet
 
 secret = os.environ['GITHUB_SECRET']
 if secret is None:
@@ -39,6 +39,7 @@ class Handler(SimpleHTTPRequestHandler):
 				self.send_reply(200, 'text/html', f.read())
 
 		elif self.path == '/github':
+			'''
 			print 'here1'
 			if 'content-length' in self.headers:
 				orig_body = self.rfile.read(int(self.headers['content-length']))
@@ -89,7 +90,7 @@ class Handler(SimpleHTTPRequestHandler):
 				print 'here14'
 				self.abort(501)
 				return
-
+			'''
 			pass
 
 		else:
