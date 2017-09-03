@@ -30,7 +30,8 @@ class Handler(SimpleHTTPRequestHandler):
 			if 'content-length' in self.headers:
 				body = self.rfile.read(int(self.headers['content-length']))
 				body = json.loads(body)
-				print json.dumps(body, indent=4)
+				with open('last.json', 'w') as f:
+					f.write(json.dumps(body, indent=4))
 
 		else:
 			body = ''
