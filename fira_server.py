@@ -35,6 +35,7 @@ class Handler(SimpleHTTPRequestHandler):
 					f.write(str(self.headers))
 					f.write('\n\n\n')
 					f.write(json.dumps(body, indent=4))
+			self.send_reply(204)
 
 		else:
 			body = ''
