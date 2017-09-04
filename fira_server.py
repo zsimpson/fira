@@ -11,12 +11,19 @@ import base64
 from SimpleHTTPServer import SimpleHTTPRequestHandler
 from BaseHTTPServer import HTTPServer, BaseHTTPRequestHandler
 from SocketServer import ThreadingMixIn
-# import chardet
 
-secret = os.environ['GITHUB_SECRET']
-if secret is None:
+
+github_secret = os.environ['GITHUB_SECRET']
+if github_secret is None:
 	print 'Error: no GITHUB_SECRET declared in environ'
 	sys.exit(1)
+
+
+jira_secret = os.environ['JIRA_SECRET']
+if jira_secret is None:
+	print 'Error: no JIRA_SECRET declared in environ'
+	sys.exit(1)
+
 
 class Handler(SimpleHTTPRequestHandler):
 	protocol_version = 'HTTP/1.0'
@@ -49,7 +56,7 @@ class Handler(SimpleHTTPRequestHandler):
 					return
 
 				# HMAC requires the key to be bytes, but data is string
-				signature = 'sha1=' + hmac.new(bytes(secret).encode('utf-8'), bytes(orig_body).encode('utf-8'), hashlib.sha1).hexdigest()
+				signature = 'sha1=' + hmac.new(bytes(github_secret).encode('utf-8'), bytes(orig_body).encode('utf-8'), hashlib.sha1).hexdigest()
 				if signature != header_signature:
 					self.abort(403)
 					return
@@ -62,10 +69,40 @@ class Handler(SimpleHTTPRequestHandler):
 
 				else:
 					self.send_reply(200, 'application/json', '')
-					print 'PR #', body['number'], 'created by', body['pull_request']['user']['login']
-					print 'PR link', body['pull_request']['_links']['self']
-					for who in body['pull_request']['assignees']:
-						print 'assigned to', who['login']
+
+					pr_number = body['number']
+					pr_url = body['pull_request']['_links']['self']
+					pr_creator = body['pull_request']['user']['login']
+					assignees = [who['login'] for who in body['pull_request']['assignees']]
+
+					post_body = {
+						'fields': {
+							'project': {
+								'id': 12902
+							},
+							'summary': 'PR Review ' + pr_number + ' for ' + pr_creator,
+							'description': pr_url + '\n' + body['pull_request']['title'],
+							'assignee': {
+								'name': 'zack'
+							},
+							'issuetype': {
+								'id': 3  # Chore
+							},
+							'labels': ['pr']
+						}
+					}
+					post_body = json.dumps(post_body)
+					jira_conn = httplib.HTTPSConnection('mousera.atlassian.net', 443)
+					headers = {
+						'content-type': 'application/json',
+						'content-length': str(len(post_body)),
+						'cookie': jira_secret,
+					}
+					jira_conn.request('POST', '/rest/api/2/issue', post_body, headers)
+					jira_resp = jira_conn.getresponse()
+					jira_headers = dict(jira_resp.getheaders())
+					jira_reply = jira_resp.read()
+					print 'jira replied', jira_resp.status, jira_headers, jira_reply
 
 			else:
 				self.abort(501)
