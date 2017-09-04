@@ -39,40 +39,24 @@ class Handler(SimpleHTTPRequestHandler):
 				self.send_reply(200, 'text/html', f.read())
 
 		elif self.path == '/github':
-			print 'here1'
 			if 'content-length' in self.headers:
 				orig_body = self.rfile.read(int(self.headers['content-length']))
-				print 'orig_body start'
-				print orig_body
-				print 'orig_body end'
 				body = json.loads(orig_body)
 
 				header_signature = self.headers.get('X-Hub-Signature')
-				print 'here2'
 				if header_signature is None:
-					print 'here3'
 					self.abort(403)
 					return
 
 				# HMAC requires the key to be bytes, but data is string
-				print 'here6', type(bytes(secret).encode('utf-8')), type(bytes(orig_body).encode('utf-8'))
 				signature = 'sha1=' + hmac.new(bytes(secret).encode('utf-8'), bytes(orig_body).encode('utf-8'), hashlib.sha1).hexdigest()
-
-				print 'here6.1', signature, header_signature
-				if signature == header_signature:
-					print 'GOOD!'
-
-				hm = hmac.new(bytes(secret), bytes(orig_body), hashlib.sha1)
-				print 'by base64', base64.b64encode(hm.digest())
-
-				# h = hmac.new(os.environ.get('GITHUB_SECRET'), orig_body, hashlib.sha1)
-				# print 'using compare digest', hmac.compare_digest(bytes("sha1=" + h.hexdigest()), bytes(header_signature))
+				if signature != header_signature:
+					self.abort(403)
+					return
 
 				# Implement ping
-				print 'here12'
 				event = self.headers.get('X-GitHub-Event', 'ping')
 				if event == 'ping':
-					print 'here13'
 					self.send_reply(200, 'application/json', json.dumps({'msg': 'pong'}))
 					return
 
@@ -81,10 +65,8 @@ class Handler(SimpleHTTPRequestHandler):
 					self.send_reply(200, 'application/json', '')
 					return
 			else:
-				print 'here14'
 				self.abort(501)
 				return
-			pass
 
 		else:
 			body = ''
