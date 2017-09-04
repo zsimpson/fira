@@ -80,7 +80,7 @@ class Handler(SimpleHTTPRequestHandler):
 							'project': {
 								'id': 12902
 							},
-							'summary': 'PR Review ' + pr_number + ' for ' + pr_creator,
+							'summary': 'PR Review ' + str(pr_number) + ' for ' + str(pr_creator),
 							'description': pr_url + '\n' + body['pull_request']['title'],
 							'assignee': {
 								'name': 'zack'
