@@ -78,10 +78,10 @@ class Handler(SimpleHTTPRequestHandler):
 					post_body = {
 						'fields': {
 							'project': {
-								'id': 12902
+								'id': '12902'
 							},
 							'summary': 'PR Review ' + str(pr_number) + ' for ' + str(pr_creator),
-							'description': pr_url + '\n' + body['pull_request']['title'],
+							'description': pr_url + body['pull_request']['title'],
 							'assignee': {
 								'name': 'zack'
 							},
@@ -92,6 +92,7 @@ class Handler(SimpleHTTPRequestHandler):
 						}
 					}
 					post_body = json.dumps(post_body)
+					print 'post_body', post_body
 					jira_conn = httplib.HTTPSConnection('mousera.atlassian.net', 443)
 					headers = {
 						'content-type': 'application/json',
