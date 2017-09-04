@@ -39,8 +39,7 @@ class Handler(SimpleHTTPRequestHandler):
 				self.send_reply(200, 'text/html', f.read())
 
 		elif self.path == '/github':
-			'''
-			print 'here1'
+]			print 'here1'
 			if 'content-length' in self.headers:
 				orig_body = self.rfile.read(int(self.headers['content-length']))
 				print 'orig_body start'
@@ -62,7 +61,7 @@ class Handler(SimpleHTTPRequestHandler):
 				print 'secret_encoding', secret_encoding
 
 				print 'here6', type(bytes(secret)), type(bytes(orig_body))
-				signature = 'sha1=' + hmac.new(bytes(secret), bytes(orig_body), hashlib.sha1).hexdigest()
+				signature = 'sha1=' + hmac.new(bytes(secret).encode('utf-8'), bytes(orig_body).encode('utf-8'), hashlib.sha1).hexdigest()
 
 				print 'here6.1', signature, header_signature
 				if signature == header_signature:
@@ -90,7 +89,6 @@ class Handler(SimpleHTTPRequestHandler):
 				print 'here14'
 				self.abort(501)
 				return
-			'''
 			pass
 
 		else:
