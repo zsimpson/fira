@@ -55,12 +55,7 @@ class Handler(SimpleHTTPRequestHandler):
 					return
 
 				# HMAC requires the key to be bytes, but data is string
-				orig_encoding = chardet.detect(orig_body)['encoding']
-				secret_encoding = chardet.detect(secret)['encoding']
-				print 'orig_encoding', orig_encoding
-				print 'secret_encoding', secret_encoding
-
-				print 'here6', type(bytes(secret)), type(bytes(orig_body))
+				print 'here6', type(bytes(secret).encode('utf-8')), type(bytes(orig_body).encode('utf-8'))
 				signature = 'sha1=' + hmac.new(bytes(secret).encode('utf-8'), bytes(orig_body).encode('utf-8'), hashlib.sha1).hexdigest()
 
 				print 'here6.1', signature, header_signature
