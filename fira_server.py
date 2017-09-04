@@ -71,7 +71,7 @@ class Handler(SimpleHTTPRequestHandler):
 					self.send_reply(200, 'application/json', '')
 
 					pr_number = body['number']
-					pr_url = body['pull_request']['_links']['self']
+					pr_url = body['pull_request']['_links']['self']['href']
 					pr_creator = body['pull_request']['user']['login']
 					assignees = [who['login'] for who in body['pull_request']['assignees']]
 
