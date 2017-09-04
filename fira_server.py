@@ -61,9 +61,12 @@ class Handler(SimpleHTTPRequestHandler):
 					return
 
 				else:
-					print 'event', event					
 					self.send_reply(200, 'application/json', '')
-					return
+					print 'PR #', body['number'], 'created by', body['pull_request']['user']['login']
+					print 'PR link', body['pull_request']['_links']['self']
+					for who in body['pull_request']['assignees']:
+						print 'assigned to', who['login']
+
 			else:
 				self.abort(501)
 				return
