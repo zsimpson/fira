@@ -82,7 +82,7 @@ class Handler(SimpleHTTPRequestHandler):
 
 					try:
 						pr_number = body['number']
-						pr_url = body['pull_request']['_links']['self']['href']
+						pr_url = body['pull_request']['html_url']
 						pr_creator = body['pull_request']['user']['login']
 						assignees = [who['login'] for who in body['pull_request']['assignees']]
 						jira_name = git_to_jira_name[assignees[0]]
@@ -93,7 +93,7 @@ class Handler(SimpleHTTPRequestHandler):
 									'id': '12902'
 								},
 								'summary': 'PR Review ' + str(pr_number) + ' for ' + str(pr_creator),
-								'description': pr_url + ' ' + body['pull_request']['title'],
+								'description': pr_url + '\n\n' + body['pull_request']['title'],
 								'assignee': {
 									'name': jira_name
 								},
