@@ -106,50 +106,43 @@ class Handler(SimpleHTTPRequestHandler):
 						pr_creator = body['pull_request']['user']['login']
 						assignees = [who['login'] for who in body['pull_request']['assignees']]
 						jira_name = git_to_jira_name[assignees[0]]
-					except:
-						return
 
-					search_body = {
-						'jql': 'summary ~ "PR Review ' + str(pr_number) + '"',
-						'startAt': 0,
-						'maxResults': 1000,
-						'fields': [],
-						'fieldsByKeys': False
-					}
-					status, headers, reply = jira_json('POST', '/rest/api/2/search', search_body)
-
-					print status, headers, reply
-
-					'''
-					post_body = {
-						'fields': {
-							'project': {
-								'id': '12902'
-							},
-							'summary': 'PR Review ' + str(pr_number) + ' for ' + str(pr_creator),
-							'description': pr_url + '\n\n' + body['pull_request']['title'],
-							'assignee': {
-								'name': jira_name
-							},
-							'issuetype': {
-								'id': 3  # Chore
-							},
-							'labels': ['pr']
+						search_body = {
+							'jql': 'summary ~ "PR Review ' + str(pr_number) + '"',
+							'startAt': 0,
+							'maxResults': 1000,
+							'fields': [],
+							'fieldsByKeys': False
 						}
-					}
-					post_body = json.dumps(post_body)
-					jira_conn = httplib.HTTPSConnection('mousera.atlassian.net', 443)
-					headers = {
-						'content-type': 'application/json',
-						'content-length': str(len(post_body)),
-						'cookie': urllib.unquote(jira_secret),
-					}
-					jira_conn.request('POST', '/rest/api/2/issue', post_body, headers)
-					jira_resp = jira_conn.getresponse()
-					jira_headers = dict(jira_resp.getheaders())
-					jira_reply = jira_resp.read()
-					print 'jira replied', jira_resp.status, jira_headers, jira_reply
-					'''
+						status, headers, reply = jira_json('POST', '/rest/api/2/search', search_body)
+
+						total = json.loads(reply)['total']
+
+						# Only create a PR issue if there isn't one already
+						# TODO: This should change the assignee if it already exists
+						if total == 0:
+							create_issue_body = {
+								'fields': {
+									'project': {
+										'id': '12902'
+									},
+									'summary': 'PR Review ' + str(pr_number) + ' for ' + str(pr_creator),
+									'description': pr_url + '\n\n' + body['pull_request']['title'],
+									'assignee': {
+										'name': jira_name
+									},
+									'issuetype': {
+										'id': 3  # Chore
+									},
+									'labels': ['pr']
+								}
+							}
+
+							status, headers, reply = jira_json('POST', '/rest/api/2/issue', create_issue_body)
+						else:
+							print 'PR assignment issue already exists, skipping'
+					except Exception as e:
+						print 'exception', e
 
 			else:
 				self.abort(501)
