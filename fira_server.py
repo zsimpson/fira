@@ -110,7 +110,7 @@ class Handler(SimpleHTTPRequestHandler):
 						return
 
 					search_body = {
-						'jql': 'summary ~ "PR Review "' + str(pr_number),
+						'jql': 'summary ~ "PR Review ' + str(pr_number) + '"',
 						'startAt': 0,
 						'maxResults': 1000,
 						'fields': [],
