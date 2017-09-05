@@ -105,9 +105,11 @@ class Handler(SimpleHTTPRequestHandler):
 						pr_number = body['number']
 						pr_url = body['pull_request']['html_url']
 						pr_creator = body['pull_request']['user']['login']
-						print json.dumps(body, indent=4)
+						reviewers = [who['login'] for who in body['pull_request']['requested_reviewers']]
 						assignees = [who['login'] for who in body['pull_request']['assignees']]
-						if len(assignees) > 0:
+						if len(reviewers) > 0:
+							jira_name = git_to_jira_name[reviewers[0]]
+						elif len(assignees) > 0:
 							jira_name = git_to_jira_name[assignees[0]]
 						else:
 							return
