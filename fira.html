@@ -220,7 +220,18 @@
 		let epicsByKey = {};
 		let allLabels = [];
 
-		let users = [];
+		let users = [
+			'daniel ford',
+			'davidrideout',
+			'guy',
+			'joe betts-lacroix',
+			'kyle heath',
+			'mike mccabe',
+			'pablo',
+			'willy',
+			'youssef',
+			'zack',
+		];
 
 		let jiraStatusToFiraCol = {
 			'New': 'New',
@@ -1063,13 +1074,19 @@
 				$('.issue-labels').toggle( isChecked );
 			});
 
-
+			// Temp removed. There seems to be permission issues on this
+			/*
 			jira('GET', '/rest/api/2/group/member', {groupname:'fira', maxResults:1000}, null, (data)=>{
 				users = data.values.map( i => i.key );
 				$('#filter-assignee').html( listAsOptions(users) );
 				$('#filter-assignee').val( getCookie('filter-assignee') );
 				reload();
 			});
+			*/
+			$('#filter-assignee').html( listAsOptions(users) );
+			$('#filter-assignee').val( getCookie('filter-assignee') );
+			reload();
+
 
 			$('#filter-assignee').change( function() {
 				setCookie('filter-assignee', $(this).val() );
