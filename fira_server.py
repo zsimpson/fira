@@ -105,7 +105,10 @@ class Handler(SimpleHTTPRequestHandler):
 						pr_url = body['pull_request']['html_url']
 						pr_creator = body['pull_request']['user']['login']
 						assignees = [who['login'] for who in body['pull_request']['assignees']]
-						jira_name = git_to_jira_name[assignees[0]]
+						if len(assignees) > 0:
+							jira_name = git_to_jira_name[assignees[0]]
+						else:
+							return
 
 						search_body = {
 							'jql': 'summary ~ "PR Review ' + str(pr_number) + '"',
@@ -141,6 +144,7 @@ class Handler(SimpleHTTPRequestHandler):
 							status, headers, reply = jira_json('POST', '/rest/api/2/issue', create_issue_body)
 						else:
 							print 'PR assignment issue already exists, skipping'
+
 					except Exception as e:
 						print 'exception', e
 
