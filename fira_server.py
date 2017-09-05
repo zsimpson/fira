@@ -156,7 +156,6 @@ class Handler(SimpleHTTPRequestHandler):
 								}
 							}
 							status, headers, reply = jira_json('PUT', '/rest/api/2/issue/'+key, put_body)
-							print status
 
 					except Exception as e:
 						print 'exception', e
@@ -179,16 +178,6 @@ class Handler(SimpleHTTPRequestHandler):
 			status, headers, reply = jira(self.command, self.path, body, headers)
 			self.send_reply(status, headers['content-type'], reply)
 
-			'''
-			jira_conn = httplib.HTTPSConnection('mousera.atlassian.net', 443)
-			print 'about to call jira', self.command, self.path, body, headers
-			jira_conn.request(self.command, self.path, body, headers)
-			jira_resp = jira_conn.getresponse()
-			jira_headers = dict(jira_resp.getheaders())
-			jira_reply = jira_resp.read()
-			self.send_reply(jira_resp.status, jira_headers['content-type'], jira_reply)
-			'''
-
 	def do_OPTIONS(self):
 		self.send_response(200)
 		self.send_header('access-control-allow-origin', '*')
@@ -208,6 +197,7 @@ class Handler(SimpleHTTPRequestHandler):
 
 class ThreadedHTTPServer(ThreadingMixIn, HTTPServer):
     """Handle requests in a separate thread."""
+
 
 port = int(sys.argv[1]) if len(sys.argv) > 1 else 80
 print 'Server started port', port
