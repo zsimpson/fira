@@ -82,6 +82,9 @@
 		.issue-list .issue-production {
 			background-color: #f5ecac;
 		}
+		.issue-list .issue-pr {
+			background-color: #acd3f5;
+		}
 		.hidden-placeholder {
 			min-height: 50px;
 		}
@@ -539,6 +542,9 @@
 			let colorClasses = '';
 			if( issue.nonFiraLabels.includes('production') ) {
 				colorClasses += '.issue-production';
+			}
+			if( issue.nonFiraLabels.includes('pr') ) {
+				colorClasses += '.issue-pr';
 			}
 			let zz = z('li.panel.panel-default.issue-panel', {'data-key': issue.key},
 				z('div.panel-heading',
