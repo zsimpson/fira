@@ -25,6 +25,16 @@ if jira_secret is None:
 	sys.exit(1)
 
 
+user_map = os.environ['NAME_MAP']
+if user_map is None:
+	print 'Error: no NAME_MAP declared in environ'
+	sys.exit(1)
+git_to_jira_name = {}
+for pairs in user_map.split(','):
+	git, jira = pairs.split(':')
+	git_to_jira_name[git] = jira 
+print git_to_jira_name
+
 class Handler(SimpleHTTPRequestHandler):
 	protocol_version = 'HTTP/1.0'
 
@@ -81,7 +91,7 @@ class Handler(SimpleHTTPRequestHandler):
 								'id': '12902'
 							},
 							'summary': 'PR Review ' + str(pr_number) + ' for ' + str(pr_creator),
-							'description': pr_url + body['pull_request']['title'],
+							'description': pr_url + ' ' + body['pull_request']['title'],
 							'assignee': {
 								'name': 'zack'
 							},
@@ -92,7 +102,6 @@ class Handler(SimpleHTTPRequestHandler):
 						}
 					}
 					post_body = json.dumps(post_body)
-					print 'jira_secret', jira_secret
 					jira_conn = httplib.HTTPSConnection('mousera.atlassian.net', 443)
 					headers = {
 						'content-type': 'application/json',
