@@ -92,7 +92,7 @@ class Handler(SimpleHTTPRequestHandler):
 						}
 					}
 					post_body = json.dumps(post_body)
-					print 'post_body', post_body
+					print 'jira_secret', jira_secret
 					jira_conn = httplib.HTTPSConnection('mousera.atlassian.net', 443)
 					headers = {
 						'content-type': 'application/json',
