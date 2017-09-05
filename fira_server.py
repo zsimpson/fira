@@ -33,7 +33,7 @@ git_to_jira_name = {}
 for pairs in user_map.split(','):
 	git, jira = pairs.split(':')
 	git_to_jira_name[git] = jira 
-print git_to_jira_name
+
 
 class Handler(SimpleHTTPRequestHandler):
 	protocol_version = 'HTTP/1.0'
@@ -84,6 +84,7 @@ class Handler(SimpleHTTPRequestHandler):
 					pr_url = body['pull_request']['_links']['self']['href']
 					pr_creator = body['pull_request']['user']['login']
 					assignees = [who['login'] for who in body['pull_request']['assignees']]
+					jira_name = git_to_jira_name[assignees[0]]
 
 					post_body = {
 						'fields': {
@@ -93,7 +94,7 @@ class Handler(SimpleHTTPRequestHandler):
 							'summary': 'PR Review ' + str(pr_number) + ' for ' + str(pr_creator),
 							'description': pr_url + ' ' + body['pull_request']['title'],
 							'assignee': {
-								'name': 'zack'
+								'name': jira_name
 							},
 							'issuetype': {
 								'id': 3  # Chore
