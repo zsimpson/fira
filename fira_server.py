@@ -75,6 +75,7 @@ class Handler(SimpleHTTPRequestHandler):
 				self.send_reply(200, 'text/html', f.read())
 
 		elif self.path == '/github':
+			# Webhook to github to create issues on PR assignment
 			if 'content-length' in self.headers:
 				orig_body = self.rfile.read(int(self.headers['content-length']))
 				body = json.loads(orig_body)
@@ -143,7 +144,8 @@ class Handler(SimpleHTTPRequestHandler):
 
 							status, headers, reply = jira_json('POST', '/rest/api/2/issue', create_issue_body)
 						else:
-							print 'PR assignment issue already exists, skipping'
+							# print 'PR assignment issue already exists, skipping'
+							pass
 
 					except Exception as e:
 						print 'exception', e
