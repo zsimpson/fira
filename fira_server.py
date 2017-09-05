@@ -144,8 +144,7 @@ class Handler(SimpleHTTPRequestHandler):
 
 							status, headers, reply = jira_json('POST', '/rest/api/2/issue', create_issue_body)
 						else:
-							print reply
-							key = json.loads(reply)['key']
+							key = json.loads(reply)['issues'][0]['key']
 							put_body = {
 								'fields': {
 									'assignee': {
