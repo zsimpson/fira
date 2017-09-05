@@ -120,6 +120,7 @@ class Handler(SimpleHTTPRequestHandler):
 				'content-length': str(len(body)),
 				'cookie': urllib.unquote(self.headers['Cookie'].replace('jiracookie=', '')),
 			}
+			print 'about to call jira', self.command, self.path, body, headers
 			jira_conn.request(self.command, self.path, body, headers)
 			jira_resp = jira_conn.getresponse()
 			jira_headers = dict(jira_resp.getheaders())
