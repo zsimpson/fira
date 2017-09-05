@@ -97,7 +97,7 @@ class Handler(SimpleHTTPRequestHandler):
 					headers = {
 						'content-type': 'application/json',
 						'content-length': str(len(post_body)),
-						'cookie': jira_secret,
+						'cookie': urllib.unquote(jira_secret),
 					}
 					jira_conn.request('POST', '/rest/api/2/issue', post_body, headers)
 					jira_resp = jira_conn.getresponse()
