@@ -144,8 +144,17 @@ class Handler(SimpleHTTPRequestHandler):
 
 							status, headers, reply = jira_json('POST', '/rest/api/2/issue', create_issue_body)
 						else:
-							# print 'PR assignment issue already exists, skipping'
-							pass
+							print reply
+							key = json.loads(reply)['key']
+							put_body = {
+								'fields': {
+									'assignee': {
+										'name': jira_name
+									}
+								}
+							}
+							status, headers, reply = jira_json('PUT', '/rest/api/2/issue/'+key, put_body)
+							print status
 
 					except Exception as e:
 						print 'exception', e
