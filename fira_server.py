@@ -80,40 +80,43 @@ class Handler(SimpleHTTPRequestHandler):
 				else:
 					self.send_reply(200, 'application/json', '')
 
-					pr_number = body['number']
-					pr_url = body['pull_request']['_links']['self']['href']
-					pr_creator = body['pull_request']['user']['login']
-					assignees = [who['login'] for who in body['pull_request']['assignees']]
-					jira_name = git_to_jira_name[assignees[0]]
+					try:
+						pr_number = body['number']
+						pr_url = body['pull_request']['_links']['self']['href']
+						pr_creator = body['pull_request']['user']['login']
+						assignees = [who['login'] for who in body['pull_request']['assignees']]
+						jira_name = git_to_jira_name[assignees[0]]
 
-					post_body = {
-						'fields': {
-							'project': {
-								'id': '12902'
-							},
-							'summary': 'PR Review ' + str(pr_number) + ' for ' + str(pr_creator),
-							'description': pr_url + ' ' + body['pull_request']['title'],
-							'assignee': {
-								'name': jira_name
-							},
-							'issuetype': {
-								'id': 3  # Chore
-							},
-							'labels': ['pr']
+						post_body = {
+							'fields': {
+								'project': {
+									'id': '12902'
+								},
+								'summary': 'PR Review ' + str(pr_number) + ' for ' + str(pr_creator),
+								'description': pr_url + ' ' + body['pull_request']['title'],
+								'assignee': {
+									'name': jira_name
+								},
+								'issuetype': {
+									'id': 3  # Chore
+								},
+								'labels': ['pr']
+							}
 						}
-					}
-					post_body = json.dumps(post_body)
-					jira_conn = httplib.HTTPSConnection('mousera.atlassian.net', 443)
-					headers = {
-						'content-type': 'application/json',
-						'content-length': str(len(post_body)),
-						'cookie': urllib.unquote(jira_secret),
-					}
-					jira_conn.request('POST', '/rest/api/2/issue', post_body, headers)
-					jira_resp = jira_conn.getresponse()
-					jira_headers = dict(jira_resp.getheaders())
-					jira_reply = jira_resp.read()
-					print 'jira replied', jira_resp.status, jira_headers, jira_reply
+						post_body = json.dumps(post_body)
+						jira_conn = httplib.HTTPSConnection('mousera.atlassian.net', 443)
+						headers = {
+							'content-type': 'application/json',
+							'content-length': str(len(post_body)),
+							'cookie': urllib.unquote(jira_secret),
+						}
+						jira_conn.request('POST', '/rest/api/2/issue', post_body, headers)
+						jira_resp = jira_conn.getresponse()
+						jira_headers = dict(jira_resp.getheaders())
+						jira_reply = jira_resp.read()
+						print 'jira replied', jira_resp.status, jira_headers, jira_reply
+					except Exception as e:
+						print e
 
 			else:
 				self.abort(501)
