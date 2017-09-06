@@ -685,6 +685,12 @@
 
 			let issueList = $('.issue-list');
 			issueList.sortable({
+				start: () => {
+					console.log('start');
+				},
+				stop: () => {
+					console.log('stop');
+				},
 				handle: '.panel-heading', 
 				connectWith: '.issue-list',
 				update: function (event, ui) {
@@ -1086,7 +1092,6 @@
 			$('#filter-assignee').html( listAsOptions(users) );
 			$('#filter-assignee').val( getCookie('filter-assignee') );
 			reload();
-
 
 			$('#filter-assignee').change( function() {
 				setCookie('filter-assignee', $(this).val() );
