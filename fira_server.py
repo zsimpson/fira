@@ -107,6 +107,9 @@ class Handler(SimpleHTTPRequestHandler):
 						pr_creator = body['pull_request']['user']['login']
 						reviewers = [who['login'] for who in body['pull_request']['requested_reviewers']]
 						assignees = [who['login'] for who in body['pull_request']['assignees']]
+
+						print 'pr_number', pr_number, 'reviewers', reviewers, 'assignees', assignees
+
 						if len(reviewers) > 0:
 							jira_name = git_to_jira_name[reviewers[0]]
 						elif len(assignees) > 0:
@@ -124,6 +127,8 @@ class Handler(SimpleHTTPRequestHandler):
 						status, headers, reply = jira_json('POST', '/rest/api/2/search', search_body)
 
 						total = json.loads(reply)['total']
+
+						print 'status', status, 'total', total
 
 						# Only create a PR issue if there isn't one already
 						# TODO: This should change the assignee if it already exists
