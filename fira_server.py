@@ -70,38 +70,38 @@ class Handler(SimpleHTTPRequestHandler):
 		self.send_reply(403, 'application/json', '')
 
 	def do_GET(self):
-		if self.path == '/':
-			with open('fira.html') as f:
-				self.send_reply(200, 'text/html', f.read())
+		try:
+			if self.path == '/':
+				with open('fira.html') as f:
+					self.send_reply(200, 'text/html', f.read())
 
-		elif self.path == '/github':
-			# Webhook to github to create issues on PR assignment
-			if 'content-length' in self.headers:
-				orig_body = self.rfile.read(int(self.headers['content-length']))
-				body = json.loads(orig_body)
+			elif self.path == '/github':
+				# Webhook to github to create issues on PR assignment
+				if 'content-length' in self.headers:
+					orig_body = self.rfile.read(int(self.headers['content-length']))
+					body = json.loads(orig_body)
 
-				header_signature = self.headers.get('X-Hub-Signature')
-				if header_signature is None:
-					self.abort(403)
-					return
+					header_signature = self.headers.get('X-Hub-Signature')
+					if header_signature is None:
+						self.abort(403)
+						return
 
-				# HMAC requires the key to be bytes, but data is string
-				signature = 'sha1=' + hmac.new(bytes(github_secret).encode('utf-8'), bytes(orig_body).encode('utf-8'), hashlib.sha1).hexdigest()
-				if signature != header_signature:
-					self.abort(403)
-					return
+					# HMAC requires the key to be bytes, but data is string
+					signature = 'sha1=' + hmac.new(bytes(github_secret).encode('utf-8'), bytes(orig_body).encode('utf-8'), hashlib.sha1).hexdigest()
+					if signature != header_signature:
+						self.abort(403)
+						return
 
-				# Implement ping
-				event = self.headers.get('X-GitHub-Event', 'ping')
-				if event == 'ping':
-					self.send_reply(200, 'application/json', json.dumps({'msg': 'pong'}))
-					return
+					# Implement ping
+					event = self.headers.get('X-GitHub-Event', 'ping')
+					if event == 'ping':
+						self.send_reply(200, 'application/json', json.dumps({'msg': 'pong'}))
+						return
 
-				else:
-					# REPLY to github
-					self.send_reply(200, 'application/json', '')
+					else:
+						# REPLY to github
+						self.send_reply(200, 'application/json', '')
 
-					try:
 						pr_number = body['number']
 						pr_url = body['pull_request']['html_url']
 						pr_creator = body['pull_request']['user']['login']
@@ -150,9 +150,11 @@ class Handler(SimpleHTTPRequestHandler):
 								}
 							}
 
+							print 'create new issue'
 							status, headers, reply = jira_json('POST', '/rest/api/2/issue', create_issue_body)
 						else:
 							key = json.loads(reply)['issues'][0]['key']
+							print 'update existing issue', key
 							put_body = {
 								'fields': {
 									'assignee': {
@@ -162,26 +164,26 @@ class Handler(SimpleHTTPRequestHandler):
 							}
 							status, headers, reply = jira_json('PUT', '/rest/api/2/issue/'+key, put_body)
 
-					except Exception as e:
-						print 'exception', e
+				else:
+					self.abort(501)
+					return
 
 			else:
-				self.abort(501)
-				return
+				body = ''
+				if 'content-length' in self.headers:
+					body = self.rfile.read(int(self.headers['content-length']))
 
-		else:
-			body = ''
-			if 'content-length' in self.headers:
-				body = self.rfile.read(int(self.headers['content-length']))
+				headers = {
+					'content-type': self.headers['content-type'],
+					'content-length': str(len(body)),
+					'cookie': urllib.unquote(self.headers['Cookie'].replace('jiracookie=', '')),
+				}
 
-			headers = {
-				'content-type': self.headers['content-type'],
-				'content-length': str(len(body)),
-				'cookie': urllib.unquote(self.headers['Cookie'].replace('jiracookie=', '')),
-			}
-
-			status, headers, reply = jira(self.command, self.path, body, headers)
-			self.send_reply(status, headers['content-type'], reply)
+				status, headers, reply = jira(self.command, self.path, body, headers)
+				self.send_reply(status, headers['content-type'], reply)
+		except Exception as e:
+			self.abort(503)
+			print 'exception handling', self.path, e
 
 	def do_OPTIONS(self):
 		self.send_response(200)
