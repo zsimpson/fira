@@ -108,7 +108,7 @@ class Handler(SimpleHTTPRequestHandler):
 						reviewers = [who['login'] for who in body['pull_request']['requested_reviewers']]
 						assignees = [who['login'] for who in body['pull_request']['assignees']]
 
-						print 'pr_number', pr_number, 'reviewers', reviewers, 'assignees', assignees
+						print time.time(), 'pr_number', pr_number, 'reviewers', reviewers, 'assignees', assignees, 'event', event
 
 						if len(reviewers) > 0:
 							jira_name = git_to_jira_name[reviewers[0]]
