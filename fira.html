@@ -1156,6 +1156,8 @@
 				$('#btn-configure').trigger('click');
 			}
 
+			/*
+			// This dpesn't recover from sleep correctly. It attempts to load the page many times
 			setInterval( () => {
 				if( ! dragging && ! modalUp ) {
 					// Reload every 5 minutes as long as you aren't dragging or have the modal up
@@ -1165,6 +1167,7 @@
 					}
 				}
 			}, 1000 );
+			*/
 
 			$(document).on( 'click', '.panel-body', (e) => {
 				let key = $(e.target).parents('.panel').data('key');
