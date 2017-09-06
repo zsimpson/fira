@@ -219,6 +219,8 @@
 		let issuesByKey = {};
 		let epicsByKey = {};
 		let allLabels = [];
+		let dragging = false;
+		let modalUp = false;
 
 		let users = [
 			'daniel ford',
@@ -686,10 +688,10 @@
 			let issueList = $('.issue-list');
 			issueList.sortable({
 				start: () => {
-					console.log('start');
+					dragging = true;
 				},
 				stop: () => {
-					console.log('stop');
+					dragging = false;
 				},
 				handle: '.panel-heading', 
 				connectWith: '.issue-list',
@@ -820,6 +822,7 @@
 		}
 
 		function createDialog(title, formBody, afterRender, onSave) {
+			modalUp = true;
 			let dialogFormId = 'form-'+Date.now();
 			let zz = z('div.modal.fade', {role:'dialog'},
 				z('div.modal-dialog.modal-lg',
@@ -863,6 +866,7 @@
 
 			$(zz).on( 'hidden.bs.modal', () => {
 				$(zz).remove();
+				modalUp = false;
 			});
 
 			return zz;
@@ -1149,6 +1153,12 @@
 			else {
 				$('#btn-configure').trigger('click');
 			}
+
+			setInterval( () => {
+				if( ! dragging && ! modalUp ) {
+					console.log( 'OK to refresh' );
+				}
+			}, 1000 );
 
 			$(document).on( 'click', '.panel-body', (e) => {
 				let key = $(e.target).parents('.panel').data('key');
