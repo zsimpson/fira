@@ -1157,8 +1157,9 @@
 			}
 
 			setInterval( () => {
-				if( ! dragging && ! modalUp && $('#filter-assignee').val() == 'zack' ) {
-					if( (new Date()) - lastUpdate > 10*1000 ) {
+				if( ! dragging && ! modalUp ) {
+					// Reload every 5 minutes as long as you aren't dragging or have the modal up
+					if( (new Date()) - lastUpdate > 5*60*1000 ) {
 						reload();
 					}
 				}
