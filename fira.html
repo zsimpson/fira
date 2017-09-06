@@ -221,6 +221,7 @@
 		let allLabels = [];
 		let dragging = false;
 		let modalUp = false;
+		let lastUpdate = 0;
 
 		let users = [
 			'daniel ford',
@@ -1003,6 +1004,7 @@
 				renderIssues(issues);
 				updateFilterByLabel();
 				filterIssues();
+				lastUpdate = new Date();
 			});
 
 			if( ! getCookie('filter-assignee' ) ) {
@@ -1155,8 +1157,10 @@
 			}
 
 			setInterval( () => {
-				if( ! dragging && ! modalUp ) {
-					console.log( 'OK to refresh' );
+				if( ! dragging && ! modalUp && $('#filter-assignee').val() == 'zack' ) {
+					if( (new Date()) - lastUpdate > 10*1000 ) {
+						reload();
+					}
 				}
 			}, 1000 );
 
