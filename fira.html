@@ -993,7 +993,7 @@
 			});
 		}
 
-		function reload() {
+		function reload( callback ) {
 			let assignee = $('#filter-assignee').val();
 			let waiting = z('h3.text-center.loading',
 				z('span.glyphicon.glyphicon-refresh.spinning'),
@@ -1005,6 +1005,9 @@
 				updateFilterByLabel();
 				filterIssues();
 				lastUpdate = new Date();
+				if( callback ) {
+					callback();
+				}
 			});
 
 			if( ! getCookie('filter-assignee' ) ) {
@@ -1157,15 +1160,15 @@
 			}
 
 			// This doesn't recover from sleep correctly. It attempts to load the page many times
+			let reloading = false;
 			setInterval( () => {
-				console.log('interval check');
-				if( ! dragging && ! modalUp ) {
+				if( ! dragging && ! modalUp && !reloading ) {
 					// Reload every 5 minutes as long as you aren't dragging or have the modal up
 					let diff = (new Date()) - lastUpdate;
 					if( diff > 60*1000 ) {
-						console.log('reload');
-						reload();
-						console.log('back from reload');
+						reload( () => {
+							reloading = false
+						});
 					}
 				}
 			}, 1000 );
