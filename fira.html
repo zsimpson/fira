@@ -1158,7 +1158,7 @@
 			}
 
 			// This doesn't recover from sleep correctly. It attempts to load the page many times
-			lwt lastUpdate = new Date();
+			let lastUpdate = new Date();
 			let reloading = false;
 			setInterval( () => {
 				if( ! dragging && ! modalUp && !reloading ) {
