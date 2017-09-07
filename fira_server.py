@@ -153,6 +153,7 @@ class Handler(SimpleHTTPRequestHandler):
 
 							print 'create new issue'
 							status, headers, reply = jira_json('POST', '/rest/api/2/issue', create_issue_body)
+							print 'new issue reply', status, reply
 						else:
 							key = json.loads(reply)['issues'][0]['key']
 							print 'update existing issue', key
@@ -164,6 +165,7 @@ class Handler(SimpleHTTPRequestHandler):
 								}
 							}
 							status, headers, reply = jira_json('PUT', '/rest/api/2/issue/'+key, put_body)
+							print 'update reply', status, reply
 
 				else:
 					self.abort(501)
