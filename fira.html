@@ -1156,18 +1156,19 @@
 				$('#btn-configure').trigger('click');
 			}
 
-			/*
-			// This dpesn't recover from sleep correctly. It attempts to load the page many times
+			// This doesn't recover from sleep correctly. It attempts to load the page many times
 			setInterval( () => {
+				console.log('interval check');
 				if( ! dragging && ! modalUp ) {
 					// Reload every 5 minutes as long as you aren't dragging or have the modal up
 					let diff = (new Date()) - lastUpdate;
 					if( diff > 5*60*1000 ) {
+						console.log('reload');
 						reload();
+						console.log('back from reload');
 					}
 				}
 			}, 1000 );
-			*/
 
 			$(document).on( 'click', '.panel-body', (e) => {
 				let key = $(e.target).parents('.panel').data('key');
