@@ -1164,7 +1164,7 @@
 				if( ! dragging && ! modalUp && !reloading ) {
 					// Reload every 5 minutes as long as you aren't dragging or have the modal up
 					let diff = (new Date()) - lastUpdate;
-					if( diff > 60*1000 ) {
+					if( diff > 5*60*1000 ) {
 						lastUpdate = new Date();
 						reloading = true;
 						reload( () => {
