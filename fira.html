@@ -384,9 +384,13 @@
 							id: t.id
 						}
 					}
-					jira('POST', '/rest/api/2/issue/'+key+'/transitions', null, transition);
+					jira('POST', '/rest/api/2/issue/'+key+'/transitions', null, transition, onSuccess, onError);
 				}
 				else {
+					if( onError ) {
+						onError();
+						return;
+					}
 					alert('The project does not allow that transition.\nThe issue will be put back where it was.');
 					reload();
 					return;
@@ -404,7 +408,7 @@
 						}
 					}
 
-					jira('PUT', '/rest/api/2/issue/'+key, null, putBody, onSuccess, onError);
+					jira('PUT', '/rest/api/2/issue/'+key, null, putBody);
 				}
 			});
 		}
