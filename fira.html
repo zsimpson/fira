@@ -361,7 +361,7 @@
 			jira('PUT', '/rest/api/2/issue/'+key, null, putBody);
 		}
 
-		function jiraTransition(key, toCol) {
+		function jiraTransition(key, toCol, onSuccess, onError) {
 			jira('GET', '/rest/api/2/issue/'+key+'/transitions', null, null, (transitions)=>{
 				let toPlanned = toCol.split(' ')[0] == 'Planned';
 
@@ -399,7 +399,7 @@
 						}
 					}
 
-					jira('PUT', '/rest/api/2/issue/'+key, null, putBody);
+					jira('PUT', '/rest/api/2/issue/'+key, null, putBody, onSuccess, onError);
 				}
 			});
 		}
@@ -1186,7 +1186,10 @@
 					fields.nonFiraLabels = fields.nonFiraLabels.split(',');
 					jiraUpdateIssue(key, fields);
 					if( fields.assignee !== issue.assignee ) {
-						reload();
+						// If you re-assign an issue I move it to New
+						// But since the transition can fail for some projects
+						// I trap the error and ignore it always proceeding to reload
+						jiraTransition(key, 'New', reload, reload);
 					}
 					else {
 						issue = Object.assign(issue, fields);
