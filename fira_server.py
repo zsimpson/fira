@@ -33,7 +33,10 @@ if user_map is None:
 git_to_jira_name = {}
 for pairs in user_map.split(','):
 	git, jira = pairs.split(':')
-	git_to_jira_name[git] = jira 
+	git_to_jira_name[git] = jira
+
+
+prs_in_flight = {}
 
 
 def jira(method, path, body, headers):
@@ -118,54 +121,63 @@ class Handler(SimpleHTTPRequestHandler):
 						else:
 							return
 
-						search_body = {
-							'jql': 'summary ~ "PR Review ' + str(pr_number) + '"',
-							'startAt': 0,
-							'maxResults': 1000,
-							'fields': [],
-							'fieldsByKeys': False
-						}
-						status, headers, reply = jira_json('POST', '/rest/api/2/search', search_body)
+						if prs_in_flight.get(pr_number):
+							print 'pr in flight', pr_number
+							return
 
-						total = json.loads(reply)['total']
+						try:
+							prs_in_flight[pr_number] = True
 
-						print 'status', status, 'total', total
-
-						# Only create a PR issue if there isn't one already
-						# TODO: This should change the assignee if it already exists
-						if total == 0:
-							create_issue_body = {
-								'fields': {
-									'project': {
-										'id': '12902'
-									},
-									'summary': 'PR Review ' + str(pr_number) + ' for ' + str(pr_creator),
-									'description': pr_url + '\n\n' + body['pull_request']['title'],
-									'assignee': {
-										'name': jira_name
-									},
-									'issuetype': {
-										'id': 3  # Chore
-									},
-									'labels': ['pr']
-								}
+							search_body = {
+								'jql': 'summary ~ "PR Review ' + str(pr_number) + '"',
+								'startAt': 0,
+								'maxResults': 1000,
+								'fields': [],
+								'fieldsByKeys': False
 							}
+							status, headers, reply = jira_json('POST', '/rest/api/2/search', search_body)
 
-							print 'create new issue'
-							status, headers, reply = jira_json('POST', '/rest/api/2/issue', create_issue_body)
-							print 'new issue reply', status, reply
-						else:
-							key = json.loads(reply)['issues'][0]['key']
-							print 'update existing issue', key
-							put_body = {
-								'fields': {
-									'assignee': {
-										'name': jira_name
+							total = json.loads(reply)['total']
+
+							print 'status', status, 'total', total
+
+							# Only create a PR issue if there isn't one already
+							# TODO: This should change the assignee if it already exists
+							if total == 0:
+								create_issue_body = {
+									'fields': {
+										'project': {
+											'id': '12902'
+										},
+										'summary': 'PR Review ' + str(pr_number) + ' for ' + str(pr_creator),
+										'description': pr_url + '\n\n' + body['pull_request']['title'],
+										'assignee': {
+											'name': jira_name
+										},
+										'issuetype': {
+											'id': 3  # Chore
+										},
+										'labels': ['pr']
 									}
 								}
-							}
-							status, headers, reply = jira_json('PUT', '/rest/api/2/issue/'+key, put_body)
-							print 'update reply', status, reply
+
+								print 'create new issue'
+								status, headers, reply = jira_json('POST', '/rest/api/2/issue', create_issue_body)
+								print 'new issue reply', status, reply
+							else:
+								key = json.loads(reply)['issues'][0]['key']
+								print 'update existing issue', key
+								put_body = {
+									'fields': {
+										'assignee': {
+											'name': jira_name
+										}
+									}
+								}
+								status, headers, reply = jira_json('PUT', '/rest/api/2/issue/'+key, put_body)
+								print 'update reply', status, reply
+						finally:
+							prs_in_flight[pr_number] = False
 
 				else:
 					self.abort(501)
