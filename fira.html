@@ -1002,6 +1002,8 @@
 		}
 
 		function reload( callback ) {
+			location.reload();
+			/*
 			let assignee = $('#filter-assignee').val();
 			let waiting = z('h3.text-center.loading',
 				z('span.glyphicon.glyphicon-refresh.spinning'),
@@ -1028,6 +1030,7 @@
 			else {
 				$('#alert-no-assignee').remove();
 			}
+			*/
 		}
 
 		function getAllUsers() {
@@ -1067,7 +1070,7 @@
 
 			let topBar = z('form.form-inline',
 				z('span.logo', 'F*IRA'),
-				z('span.version', version),
+				z('span.version', 'v.'+version),
 				z('div.form-group',
 					z('label', {for:'filter-assignee'}, 'Filter by assignee:'),
 					z('select.form-control#filter-assignee')
