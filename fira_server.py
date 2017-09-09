@@ -9,6 +9,7 @@ import hmac
 import os
 import base64
 import time
+import re
 from SimpleHTTPServer import SimpleHTTPRequestHandler
 from BaseHTTPServer import HTTPServer, BaseHTTPRequestHandler
 from SocketServer import ThreadingMixIn
@@ -76,8 +77,13 @@ class Handler(SimpleHTTPRequestHandler):
 	def do_GET(self):
 		try:
 			if self.path == '/':
+				with open('version.txt') as f:
+					version = f.read().split()[0]
+
 				with open('fira.html') as f:
-					self.send_reply(200, 'text/html', f.read())
+					body = f.read()
+					body = body.replace('__VERSION__', version)
+					self.send_reply(200, 'text/html', body)
 
 			elif self.path == '/github':
 				# Webhook to github to create issues on PR assignment
