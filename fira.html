@@ -746,8 +746,15 @@
 
 		function createWelcomeBox() {
 			return z('div',
-				z('h1', 'Welcome!'),
 				z('p', 'Fira works by using the authentication cookies from JIRA.'),
+				z('p',
+					'You will need to log into JIRA in another tab. Then open the Developer Tools ' +
+					'with Alt-Command-I. Then select the Network Tab in the DevTools window and ' +
+					'reload the JIRA page.  Click on one of the calls such a "bulk" and then select ' +
+					'the Headers sub-tab and scroll down to "Request Headers". Find the cookie ' +
+					'and copy the whole cookie value.'
+				),
+				z('button.btn.btn-primary#btn-configure-from-dialog'),
 			);
 		}
 
