@@ -744,7 +744,7 @@
 			return list.sort().map( i => z('option', i) );
 		}
 
-		function createWelcomeBox(dialog) {
+		function createWelcomeBox() {
 			return z('div',
 				z('h1', 'Welcome!'),
 				z('p', 'Fira works by using the authentication cookies from JIRA.'),
@@ -1177,7 +1177,7 @@
 				getAllProjects();
 			}
 			else {
-				createDialog( 'Welcome', createWelcomeBox, null, null);
+				createDialog( 'Welcome', createWelcomeBox(), null, null);
 				// $('#btn-configure').trigger('click');
 			}
 
