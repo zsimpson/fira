@@ -744,6 +744,13 @@
 			return list.sort().map( i => z('option', i) );
 		}
 
+		function createWelcomeBox(dialog) {
+			return z('div',
+				z('h1', 'Welcome!'),
+				z('p', 'Fira works by using the authentication cookies from JIRA.'),
+			);
+		}
+
 		function createConfigureForm() {
 			let jiraCookie = getCookie('jiracookie');
 			let zz = z('div',
@@ -1170,7 +1177,8 @@
 				getAllProjects();
 			}
 			else {
-				$('#btn-configure').trigger('click');
+				createDialog( 'Welcome', createWelcomeBox, null, null);
+				// $('#btn-configure').trigger('click');
 			}
 
 			// This doesn't recover from sleep correctly. It attempts to load the page many times
