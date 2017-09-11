@@ -287,10 +287,12 @@
 		function jira(method, path, params, body, success, error) {
 			if( ! error ) {
 				error = (jqXHR, textStatus, errorThrown) => {
-					alert(
-						'Communication with JIRA failed.\n\nPerhaps your JIRA key is mis-configured on the Configure option?\n\n' +
-						'Exact message is: ' + textStatus + ' ' + errorThrown
-					);
+					if( getCookie('jiracookie') ) {
+						alert(
+							'Communication with JIRA failed.\n\nPerhaps your JIRA key is mis-configured on the Configure option?\n\n' +
+							'Exact message is: ' + textStatus + ' ' + errorThrown
+						);
+					}
 				} 
 			}
 
