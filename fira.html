@@ -1047,17 +1047,8 @@
 			});
 
 			if( ! getCookie('filter-assignee' ) ) {
-				$('#welcome-section').html(
-					z('div#alert-no-assignee.alert.alert-warning',
-						z('strong', 'Welcome! '),
-						"Don't see any issues below yet? You need to set your assignee filter above!"
-					)
-				);
-			}
-			else {
-				$('#alert-no-assignee').remove();
-			}
-			
+				$('#welcome-section').removeClass('hidden');
+			}			
 		}
 
 		function getAllUsers() {
@@ -1095,27 +1086,34 @@
 				return undefined;
 			});
 
-			let topBar = z('form.form-inline',
-				z('span.logo', 'F*IRA'),
-				z('span.version', 'v.'+version),
-				z('div.form-group',
-					z('label', {for:'filter-assignee'}, 'Filter by assignee:'),
-					z('select.form-control#filter-assignee')
+			let topBar = z('div',
+				z('form.form-inline',
+					z('span.logo', 'F*IRA'),
+					z('span.version', 'v.'+version),
+					z('div.form-group',
+						z('label', {for:'filter-assignee'}, 'Filter by assignee:'),
+						z('select.form-control#filter-assignee')
+					),
+					z('div.form-group',
+						z('label', {for:'filter-label'}, 'Filter by label:'),
+						z('select.form-control#filter-label')
+					),
+					z('div.form-label.checkbox',
+						z('label', z('input#show-labels', {type:'checkbox'}), ' Show labels')
+					),
+	  				z('div.pull-right',
+						z('span#pending', 0),
+						z('button.btn.btn-link#btn-configure', 'Configure'),
+						z('button.btn.btn-link#btn-refresh', 'Refresh'),
+						z('button.btn.btn-success#btn-new-issue', 'New issue'),
+					)
 				),
-				z('div.form-group',
-					z('label', {for:'filter-label'}, 'Filter by label:'),
-					z('select.form-control#filter-label')
-				),
-				z('div.form-label.checkbox',
-					z('label', z('input#show-labels', {type:'checkbox'}), ' Show labels')
-				),
-  				z('div.pull-right',
-					z('span#pending', 0),
-					z('button.btn.btn-link#btn-configure', 'Configure'),
-					z('button.btn.btn-link#btn-refresh', 'Refresh'),
-					z('button.btn.btn-success#btn-new-issue', 'New issue'),
-				)
-			);
+				z('div#welcome-section.hidden',
+					z('strong', 'Welcome!'),
+						"Don't see any issues below yet? You need to set your assignee filter above."
+					)
+				);
+			}
 
 			$('#nav-section').html(topBar);
 
