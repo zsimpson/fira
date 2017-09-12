@@ -127,6 +127,7 @@
 		.modal-content {
 			background-color: #f7f7f7;
 		}
+
 	</style>
 	<script>
 		let m = window.navigator.userAgent.match(/Chrome\/(\d\d)/);
@@ -745,22 +746,24 @@
 		}
 
 		function createWelcomeBox() {
-			return z('div',
-				z('p', 'Fira works by using the authentication cookies from JIRA.'),
-				z('p',
-					'You will need to log into JIRA in another tab. Then open the Developer Tools ' +
-					'with Alt-Command-I. Then select the Network Tab in the DevTools window and ' +
-					'reload the JIRA page.  Click on one of the calls such a "bulk" and then select ' +
-					'the Headers sub-tab and scroll down to "Request Headers". Find the cookie ' +
-					'and copy the whole cookie value.'
-				),
-				z('button.btn.btn-primary#btn-configure-from-dialog'),
+			let zz = z('div',
+				z('p', 'To use Fira you need Zack to add you to the appropriate groups.'),
+				z('p', 'You will also need to grab a cookie from JIRA and paste into the configure box.'),
+				z('button.btn.btn-primary#btn-configure-from-dialog', 'Configure now'),
 			);
+			return zz;
 		}
 
 		function createConfigureForm() {
 			let jiraCookie = getCookie('jiracookie');
 			let zz = z('div',
+				z('p',
+					'You will need to log into JIRA in another tab. Then open the Developer Tools ' +
+					'with Alt-Command-i. Then select the Network Tab in the Dev Tools window and ' +
+					'reload the JIRA page.  Click on one of the calls such a "bulk" and then select ' +
+					'the Headers sub-tab and scroll down to "Request Headers". Find the cookie ' +
+					'and copy the whole cookie value. Then paste below.'
+				),
 				z('div.form-group',
 					z('label', {for:'jiracookie'}, 'JIRA cookies. (Paste from your JIRA tab, should start with "cloud.session.token=")'),
 					z('textarea.form-control', {name:'jiracookie', rows:15})
@@ -1019,13 +1022,20 @@
 		}
 
 		function reload( callback ) {
-			//location.reload();
-			
 			let assignee = $('#filter-assignee').val();
-			let waiting = z('h3.text-center.loading',
-				z('span.glyphicon.glyphicon-refresh.spinning'),
-				z('span', ' Loading...')
-			);
+			let waiting = null;
+			if( ! getCookie('jiraCookie') ) {
+				waiting = z('h3.text-center.loading',
+					z('span', 'You have not yet to configured.  Press the configure button above.')
+				);
+			}
+			else {
+				waiting = z('h3.text-center.loading',
+					z('span.glyphicon.glyphicon-refresh.spinning'),
+					z('span', ' Loading...')
+				);
+			}
+			
 			$('#issues-section').html(waiting);
 			jiraSearch( assignee, (issues) => {
 				renderIssues(issues);
@@ -1184,7 +1194,15 @@
 				getAllProjects();
 			}
 			else {
-				createDialog( 'Welcome', createWelcomeBox(), null, null);
+				createDialog( 'Welcome', createWelcomeBox(), (dialog)=>{
+					$('.modal-footer', dialog).addClass('hidden');
+					$('.modal button').click( () => {
+						$('.modal').modal('hide');
+						$('#btn-configure').trigger('click');
+						return false;
+					});
+
+				}, null);
 				// $('#btn-configure').trigger('click');
 			}
 

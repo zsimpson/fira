@@ -32,10 +32,12 @@ if user_map is None:
 	print 'Error: no NAME_MAP declared in environ'
 	sys.exit(1)
 git_to_jira_name = {}
-for pairs in user_map.split(','):
-	git, jira = pairs.split(':')
-	git_to_jira_name[git] = jira
-
+try:
+	for pairs in user_map.split(','):
+		git, jira = pairs.split(':')
+		git_to_jira_name[git] = jira
+except:
+	pass
 
 prs_in_flight = {}
 
