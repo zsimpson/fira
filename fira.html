@@ -1012,7 +1012,7 @@
 			setCookie('filter-label', label );
 			$('.panel').each( function() {
 				let issue = issuesByKey[$(this).data('key')];
-				if( label == 'Show all' || issue.nonFiraLabels.includes(label) ) {
+				if( !label || label == 'Show all' || issue.nonFiraLabels.includes(label) ) {
 					$(this).removeClass('hidden');
 				}
 				else {
@@ -1046,7 +1046,7 @@
 				}
 			});
 
-			let showWarning = ! getCookie('filter-assignee') || ! getCookie('filter-label');
+			let showWarning = ! getCookie('filter-assignee');
 			$('#welcome-section').toggleClass('hidden', ! showWarning );
 		}
 
