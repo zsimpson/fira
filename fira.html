@@ -1046,7 +1046,7 @@
 				}
 			});
 
-			$('#welcome-section').toggleClass('hidden', getCookie('filter-assignee') );
+			$('#welcome-section').toggleClass('hidden', !! getCookie('filter-assignee') );
 		}
 
 		function getAllUsers() {
