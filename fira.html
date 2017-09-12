@@ -1024,7 +1024,7 @@
 		function reload( callback ) {
 			let assignee = $('#filter-assignee').val();
 			let waiting = null;
-			if( ! getCookie('jiraCookie') ) {
+			if( ! getCookie('jiracookie') ) {
 				waiting = z('h3.text-center.loading',
 					z('span', 'You have not yet to configured.  Press the configure button above.')
 				);
