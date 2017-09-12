@@ -1046,7 +1046,8 @@
 				}
 			});
 
-			$('#welcome-section').toggleClass('hidden', !! getCookie('filter-assignee') );
+			let showWarning = ! getCookie('filter-assignee') || ! getCookie('filter-label');
+			$('#welcome-section').toggleClass('hidden', ! showWarning );
 		}
 
 		function getAllUsers() {
