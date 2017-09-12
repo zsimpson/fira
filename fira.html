@@ -1046,9 +1046,7 @@
 				}
 			});
 
-			if( ! getCookie('filter-assignee' ) ) {
-				$('#welcome-section').removeClass('hidden');
-			}			
+			$('#welcome-section').toggleClass('hidden', ! getCookie('filter-assignee') );
 		}
 
 		function getAllUsers() {
