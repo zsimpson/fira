@@ -439,9 +439,11 @@
 					}
 				}
 
-				issuesByKey[key].firaLabels = [firaLabel];
-
-				jira('PUT', '/rest/api/2/issue/'+key, null, putBody, null, ()=>{});
+				try {
+					issuesByKey[key].firaLabels = [firaLabel];
+					jira('PUT', '/rest/api/2/issue/'+key, null, putBody, null, ()=>{});
+				}
+				catch {}
 			});
 		}
 
