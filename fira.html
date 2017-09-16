@@ -444,7 +444,7 @@
 					jira('PUT', '/rest/api/2/issue/'+key, null, putBody, null, ()=>{});
 				}
 				catch(err) {
-					
+
 				}
 			});
 		}
@@ -1080,6 +1080,20 @@
 			// jira('GET', '/rest/api/2/issue/SI-462', null, null, (data)=>{
 			// 	debugger;
 			// });
+			/*
+			let putBody = {
+				fields: {
+					assignee: {
+						name: "zack"
+					}
+				}
+			}
+			jira('PUT', '/rest/api/2/issue/SI-25', null, putBody, (data) => {
+				debugger;
+			}, () => {
+				debugger;
+			});
+			*/
 
 			$(window).bind('beforeunload', function() {
 				if( pending ) {
