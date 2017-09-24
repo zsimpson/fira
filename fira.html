@@ -297,20 +297,55 @@
 				} 
 			}
 
-			updatePending( pending + 1);
+			let accumResults = [];
+			function fetchPage(startAt) {
+				updatePending( pending + 1 );
 
-			$.ajax({
-				method: method,
-				contentType: 'application/json',
-				dataType: 'json',
-				url: path + (params ? '?' + $.param(params) : ''),
-				data: body ? JSON.stringify(body) : null,
-				success: success,
-				error,
-				complete: () => {
-					updatePending( pending - 1);
+				let paginatedParams = params || {};
+				paginatedParams.startAt = startAt;
+				paginatedParams.maxResults = 100;
+				if( body ) {
+					body.startAt = startAt;
+					body.maxResults = 100;
 				}
-			});
+
+				$.ajax({
+					method: method,
+					contentType: 'application/json',
+					dataType: 'json',
+					url: path + '?' + $.param(paginatedParams),
+					data: body ? JSON.stringify(body) : null,
+					success: (data) => {
+						// Some JIRA calls will return with more pages to be fetch, some won't
+						// The ugly thing is that different calls return different blocks for
+						// the resulting data elements. In this code, only the issues field
+						// is ever paginated so that can be hard-coded here
+						if( data && 'startAt' in data ) {
+							accumResults = accumResults.concat(data.issues);
+							if( accumResults.length < data.total ) {
+								// Still more pages to come
+								fetchPage( accumResults.length );
+							}
+							else {
+								if( success ) {
+									success( accumResults );
+								}
+							}
+						}
+						else {
+							if( success ) {
+								success( data );
+							}
+						}
+					},
+					error,
+					complete: () => {
+						updatePending( pending - 1 );
+					}
+				});
+			}
+
+			fetchPage(0);
 		}
 
 		function jiraCreateIssue(fields) {
@@ -492,8 +527,6 @@
 		function jiraGetEpics() {
 			let body = {
 				jql: 'issuetype=Epic AND (status not in (done))',
-				startAt: 0,
-				maxResults: 100000000,
 				fields: [
 					'summary',
 					'status',
@@ -501,8 +534,8 @@
 				],
 				fieldsByKeys: false
 			}
-			jira('POST', '/rest/api/2/search', null, body, (data)=>{
-				epicsByKey = data.issues.reduce( (map, i) => {
+			jira('POST', '/rest/api/2/search', null, body, (_issues)=>{
+				epicsByKey = _issues.reduce( (map, i) => {
 					map[i.key] = i;
 					return map;
 				}, {});
@@ -526,8 +559,6 @@
 		function jiraSearch(assignee, onDone) {
 			let body = {
 				jql: 'assignee="'+assignee+'" AND issuetype!=Epic AND (status not in (done) OR resolutiondate > -7d)',
-				startAt: 0,
-				maxResults: 100000000,
 				fields: [
 					'summary',
 					'status',
@@ -548,8 +579,8 @@
 
 			issuesByKey = {};
 			allLabels = [];
-			jira('POST', '/rest/api/2/search', null, body, (data)=>{
-				let issues = data.issues.map(issueArrival);
+			jira('POST', '/rest/api/2/search', null, body, (_issues)=>{
+				let issues = _issues.map(issueArrival);
 				onDone(issues);
 			});
 		}
@@ -1056,7 +1087,7 @@
 
 		function getAllUsers() {
 			// For reference, not currently used.
-			jira('GET', '/rest/api/latest/user/search', {startAt:0, maxResults:1000, username:'%'}, null, (data)=>{
+			jira('GET', '/rest/api/latest/user/search', {username:'%'}, null, (data)=>{
 				let users = data.map( (i) => {
 					if( i.active ) {
 						return i.key;
@@ -1066,7 +1097,7 @@
 		}
 
 		function getAllProjects() {
-			jira('GET', '/rest/api/2/project', {startAt:0, maxResults:1000}, null, (data)=>{
+			jira('GET', '/rest/api/2/project', null, null, (data)=>{
 				projects = data.map( (p) => {
 					return {
 						id: p.id,
@@ -1080,20 +1111,6 @@
 			// jira('GET', '/rest/api/2/issue/SI-462', null, null, (data)=>{
 			// 	debugger;
 			// });
-			/*
-			let putBody = {
-				fields: {
-					assignee: {
-						name: "zack"
-					}
-				}
-			}
-			jira('PUT', '/rest/api/2/issue/SI-25', null, putBody, (data) => {
-				debugger;
-			}, () => {
-				debugger;
-			});
-			*/
 
 			$(window).bind('beforeunload', function() {
 				if( pending ) {
